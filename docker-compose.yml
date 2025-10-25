@@ -1,5 +1,5 @@
 services:
-  flask-web:
+  web:
     build: .
     container_name: daq-to-db
     ports:
