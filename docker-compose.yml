@@ -1,0 +1,12 @@
+services:
+  flask-web:
+    build: .
+    container_name: daq-to-db
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+      - ./templates:/app/templates
+    environment:
+      - FLASK_ENV=production
+    restart: unless-stopped
