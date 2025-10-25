@@ -10,7 +10,7 @@ COPY . .
 # Create folder for uploads
 RUN mkdir -p data
 
-EXPOSE 5000
+EXPOSE 6969
 
 # Run Gunicorn (Only one worker -- no need for more)
-CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:5000", "app:app"]
+CMD ["gunicorn", "-w", "1", "-b", "0.0.0.0:6969", "app:app"]

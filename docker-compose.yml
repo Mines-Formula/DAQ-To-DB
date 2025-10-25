@@ -3,7 +3,7 @@ services:
     build: .
     container_name: daq-to-db
     ports:
-      - "5000:5000"
+      - "6969:6969"
     volumes:
       - ./data:/app/data
       - ./templates:/app/templates
