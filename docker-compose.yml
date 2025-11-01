@@ -1,7 +1,7 @@
 services:
   web:
     build: .
-    container_name: daq-to-db
+    container_name: data-to-db
     ports:
       - "6969:6969"
     volumes:
