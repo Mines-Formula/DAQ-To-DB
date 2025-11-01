@@ -1,6 +1,8 @@
 import pandas as pd
 import pathlib as path
 import math
+import os
+import convert_unix_time
 
 """
 @author Will Turchin
@@ -21,12 +23,18 @@ def convert_to_lineprotocol(FILE_NAME:str, FILE_OUTPUT:str):
     :param FILE_NAME: Name of Input File
     :param FILE_OUTPUT: Name of Output File
     """
+
+    # convert input CSV to Unix Time
+    FILE_NAME_BASE, ending = os.path.splitext(FILE_NAME)
+    FILE_NAME_UNIX = FILE_NAME_BASE + "_unixtime" + ending
+    convert_unix_time.convert_unix_time(FILE_NAME, FILE_NAME_UNIX)
+
     with open(FILE_OUTPUT, "w", encoding="utf-8", newline="\n") as out:
-        df = pd.read_csv(FILE_NAME)
+        df = pd.read_csv(FILE_NAME_UNIX)
         df = df.drop_duplicates()
-        df.to_csv(FILE_NAME, mode='w', index=False)
+        df.to_csv(FILE_NAME_UNIX, mode='w', index=False)
         for chunk in pd.read_csv(
-            FILE_NAME,
+            FILE_NAME_UNIX,
             usecols=["Timestamp", "CANID", "Sensor", "Value"],
             dtype={"Timestamp": "string", "CANID": "string", "Sensor": "string", "Value": "string"},
             na_filter=False,

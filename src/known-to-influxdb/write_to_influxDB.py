@@ -1,54 +1,38 @@
-from influxdb_client import InfluxDBClient, WriteOptions, WritePrecision
-from influxdb_client.client.write_api import ASYNCHRONOUS
-# InfluxDB info
-url = "http://fsaelinux.mines.edu:8086"
-token = "theTokenOfMyDreams!"
-org = "docs"
-bucket = "TESTING"
-    
-def write_to_influxDB(FILE_NAME:str):
-    client = InfluxDBClient(url=url, token=token, org=org)
-    write_options = WriteOptions(
-        batch_size=20_000,       # num of points to send at a time
-        max_retries=5,          # num of retries for each batch
-        max_retry_delay=30_000, # delay between retries
-    )
+import subprocess
 
-    write_api = client.write_api(
-        write_options=write_options
-    )
+def write_to_influxDB(FILE_INPUT:str, BUCKET_NAME:str):
+    """
+    Reads a .line and writes to the influxDB database through the commandline
 
-    i=0
-    buf = []
-    BUF = 20_000
+    :param FILE_INPUT: Name of .line File
+    :param BUCKET_NAME: Name of Output File
+    """
+    BUCKET_NAME:str = "TESTING"
+    FILE_PATH:str = "Path_to_data"
+    HOST_NAME:str
+    ORG:str
+    TOKEN:str
 
-    try:
-        with open(FILE_NAME, "r") as file:
-            for line in file:
-                lp = line.strip()
-                if not lp: # checks if line is empty
-                    continue
-                buf.append(lp)
-                i += 1
+    with open("srck/known-to-influxdb/influxdb2_parameters/influxdb2-admin-token", "r") as file:
+        ORG = file.read()
+    with open("src\known-to-influxdb\influxdb2_parameters\influxdb2-org", "r") as file:
+        ORG = file.read()
+    with open("src/known-to-influxdb/influxdb2_parameters/influxdb2-admin-token", "r") as file:
+        TOKEN = file.read()
 
-                if len(buf) >= BUF:
-                    # Non-blocking enqueue; background thread sends & retries
-                    write_api.write(bucket=bucket, record=buf, write_precision=WritePrecision.MS)
-                    buf.clear()
+    '''
+    follows the command structure:
+        influx write --bucket <your-bucket-name> --file /path/to/your/data.csv --org <your-organization> --token <your-token>
+    '''    
+    command = [
+        "influx", "write",
+        "--host", 
+        "--bucket", BUCKET_NAME,
+        "--file", FILE_PATH,
+        "--org", ORG,
+        "--token", TOKEN
+    ]
 
-                if i % 100_000 == 0:
-                    print(f"loaded {i} lines")
-
-            # make sure everything in buffer is sent
-            if buf:
-                write_api.write(bucket=bucket, record=buf, write_precision=WritePrecision.MS)
-        # ensure all internal client buffers are sent
-        write_api.flush()
-
-    finally:
-        #close writer before client, so thread finishes cleanly
-        write_api.close()
-        client.close()
-        print(f"finished loading {i} lines")
-
-        
+    result = subprocess.run(command, capture_output=True, text=True)
+    print("STDOUT: ", result.stdout)
+    print("STDERR: ", result.stderr)
