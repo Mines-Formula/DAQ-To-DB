@@ -9,7 +9,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "flask (>=3.1.2,<4.0.0)",
-    "numpy (>=2.3.4,<3.0.0)"
+    "numpy (>=2.3.4,<3.0.0)",
+    "gunicorn (>=23.0.0,<24.0.0)"
 ]
 
 

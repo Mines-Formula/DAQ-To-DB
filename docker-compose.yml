@@ -5,8 +5,8 @@ services:
     ports:
       - "6969:6969"
     volumes:
-      - ./app/data
-      - ./app/templates/app/templates
+      - ./app/data:/app/data
+      - ./app/templates:/app/templates
     environment:
       - FLASK_ENV=production
     restart: unless-stopped
