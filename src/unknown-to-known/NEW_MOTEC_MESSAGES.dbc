@@ -1,0 +1,280 @@
+VERSION ""
+
+NS_ :
+    NS_DESC_
+    CM_
+    BA_DEF_
+    BA_
+    VAL_
+    CAT_DEF_
+    CAT_
+    FILTER
+    BA_DEF_DEF_
+    EV_DATA_
+    ENVVAR_DATA_
+    SGTYPE_
+    SGTYPE_VAL_
+    BA_REL_
+    BA_DEF_REL_
+    BA_DEF_DEF_REL_
+    BU_SG_REL_
+    BU_EV_REL_
+    BU_BO_REL_
+    SG_MUL_VAL_
+
+BS_:
+
+BU_: ECU
+
+BO_ 1600 EngineData: 8 ECU
+ SG_ EngineSpeed : 0|16@1+ (0.166667,0) [0|10922.67] "rpm" ECU
+ SG_ ManifoldPressure : 16|16@1+ (0.01,0) [0|655.35] "kPa" ECU
+ SG_ AirTemp : 32|16@1- (10.0,0) [-327680.0|327670.0] "C" ECU
+ SG_ ThrottlePosition : 48|16@1+ (0.001,0) [0|65.535] "%" ECU
+
+BO_ 1601 FuelData: 8 ECU
+ SG_ FuelVolume : 0|16@1+ (1e9,0) [-9999.99|9999.99] "l" ECU
+ SG_ FuelMixtureAim : 16|16@1+ (0.01,0) [-9999.99|9999.99] "Lambda" ECU
+ SG_ FuelPressure : 32|16@1+ (0.01,0) [0|655.35] "kPa" ECU
+ SG_ InjectorDuty : 48|8@1+ (0.01,0) [0|2.55] "%" ECU
+ SG_ EngineEfficiency : 56|8@1+ (0.01,0) [0|2.55] "%" ECU
+
+BO_ 1602 PedalTimingLoad: 8 ECU
+ SG_ ThrottlePedal : 0|16@1+ (0.001,0) [0|65.535] "%" ECU
+ SG_ EngineLoad : 16|16@1+ (1e6,0) [-9999.99|9999.99] "ratio" ECU
+ SG_ IgnitionTiming : 32|16@1- (10.0,0) [-327680.0|327670.0] "deg" ECU
+ SG_ FuelTiming : 48|16@1- (10.0,0) [-327680.0|327670.0] "deg" ECU
+
+BO_ 1618 FuelSecondary: 8 ECU
+ SG_ SecondaryInjectorContribution : 0|16@1+ (0.001,0) [0|65.535] "%" ECU
+ SG_ FuelTimingSecondary : 16|16@1- (10.0,0) [-327680.0|327670.0] "deg" ECU
+ SG_ SecondaryInjectorDuty : 32|8@1+ (0.01,0) [0|2.55] "%" ECU
+
+BO_ 1621 BrakeSteeringPressures: 8 ECU
+ SG_ BrakePressureFront : 0|16@1- (0.001,0) [-32.768|32.767] "kPa" ECU
+ SG_ BrakePressureRear : 16|16@1- (0.001,0) [-32.768|32.767] "kPa" ECU
+ SG_ CoolantPressure : 32|16@1- (0.01,0) [-327.68|327.67] "kPa" ECU
+ SG_ SteeringPressure : 48|16@1- (0.001,0) [-32.768|32.767] "kPa" ECU
+
+BO_ 1622 MassFlows: 8 ECU
+ SG_ SteeringAngle : 0|16@1- (10.0,0) [-327680.0|327670.0] "deg" ECU
+ SG_ InletMassFlow : 16|16@1+ (10000.0,0) [-9999.99|9999.99] "g/s" ECU
+ SG_ AirboxMassFlow : 32|16@1+ (10000.0,0) [-9999.99|9999.99] "g/s" ECU
+ SG_ FuelFlow : 48|16@1+ (1e8,0) [-9999.99|9999.99] "l/h" ECU
+
+BO_ 1623 ShaftSpeedsPressures: 8 ECU
+ SG_ PrimaryDiffPressure : 0|16@1- (0.01,0) [-327.68|327.67] "kPa" ECU
+ SG_ SecondaryDiffPressure : 16|16@1- (0.01,0) [-327.68|327.67] "kPa" ECU
+ SG_ InputShaftSpeed : 32|16@1+ (0.1666666666666667,0) [0|10922.67] "rpm" ECU
+ SG_ OutputShaftSpeed : 48|16@1+ (0.1666666666666667,0) [0|10922.67] "rpm" ECU
+
+BO_ 1624 AccelerationXYZ: 8 ECU
+ SG_ AccelX : 0|16@1- (101.97162,0) [-9999.99|9999.99] "G" ECU
+ SG_ AccelY : 16|16@1- (101.97162,0) [-9999.99|9999.99] "G" ECU
+ SG_ AccelZ : 32|16@1- (101.97162,0) [-9999.99|9999.99] "G" ECU
+BO_ 1584 GearShiftInfo1: 8 ECU
+ SG_ GearRatio : 0|16@1+ (0.001,0) [0|65.535] "ratio" ECU
+ SG_ GearEstimateRatio : 16|16@1+ (0.001,0) [0|65.535] "ratio" ECU
+ SG_ GearPositionSensor : 32|16@1+ (0.001,0) [0|65.535] "V" ECU
+
+BO_ 1585 GearShiftInfo2: 8 ECU
+ SG_ GearSource : 0|4@1+ (1,0) [0|15] "" ECU
+ SG_ GearEstimate : 8|8@1- (1,0) [-128|127] "" ECU
+ SG_ Gear : 16|8@1- (1,0) [-128|127] "" ECU
+ SG_ GearShift : 24|4@1+ (1,0) [0|15] "" ECU
+ SG_ GearShiftRequest : 32|4@1+ (1,0) [0|15] "" ECU
+ SG_ GearShiftRequestSource : 40|4@1+ (1,0) [0|15] "" ECU
+ SG_ GearShiftAutoPriority : 48|4@1+ (1,0) [0|15] "" ECU
+ SG_ GearShiftType : 56|4@1+ (1,0) [0|15] "" ECU
+ SG_ GearShiftSpeedMatchEnable : 60|1@1+ (1,0) [0|1] "" ECU
+
+BO_ 1586 GearInputSwitches: 8 ECU
+ SG_ PaddlePositionSensor : 0|16@1- (0.0001,0) [-3.2768|3.2767] "V" ECU
+ SG_ LeverForceSensor : 16|16@1- (0.1,0) [-3276.8|3276.7] "N" ECU
+ SG_ PaddleUpSwitch : 32|1@1+ (1,0) [0|1] "" ECU
+ SG_ PaddleDownSwitch : 33|1@1+ (1,0) [0|1] "" ECU
+ SG_ LeverUpSwitch : 34|1@1+ (1,0) [0|1] "" ECU
+ SG_ LeverDownSwitch : 35|1@1+ (1,0) [0|1] "" ECU
+ SG_ ClutchSwitch : 36|1@1+ (1,0) [0|1] "" ECU
+ SG_ BrakeSwitch : 37|1@1+ (1,0) [0|1] "" ECU
+ SG_ GearLever : 40|4@1+ (1,0) [0|15] "" ECU
+ SG_ GearPaddle : 44|4@1+ (1,0) [0|15] "" ECU
+ SG_ LeverDiag : 48|4@1- (1,0) [-8|7] "" ECU
+ SG_ PaddleDiag : 52|4@1- (1,0) [-8|7] "" ECU
+
+BO_ 1587 GearShiftMode: 8 ECU
+ SG_ ShiftMode : 0|4@1+ (1,0) [0|15] "" ECU
+ SG_ ShiftModeSwitch : 8|8@1- (1,0) [-128|127] "" ECU
+ SG_ ShiftResult : 16|4@1- (1,0) [-8|7] "" ECU
+ SG_ ShiftState : 20|4@1- (1,0) [-8|7] "" ECU
+ SG_ ShiftDiagnostic : 24|8@1- (1,0) [-128|127] "" ECU
+
+BO_ 1588 GearActuatorStatus: 8 ECU
+ SG_ ActuatorState : 0|4@1+ (1,0) [0|15] "" ECU
+ SG_ ActuatorPumpRelay : 4|1@1+ (1,0) [0|1] "" ECU
+ SG_ ActuatorUp : 5|1@1+ (1,0) [0|1] "" ECU
+ SG_ ActuatorDown : 6|1@1+ (1,0) [0|1] "" ECU
+ SG_ ActuatorPosition : 8|16@1- (0.0001,0) [-3.2768|3.2767] "mm" ECU
+ SG_ ActuatorPressure : 24|16@1+ (0.01,0) [0|655.35] "kPa" ECU
+
+BO_ 1589 ClutchStatus: 8 ECU
+ SG_ ClutchPosition : 0|16@1- (0.0001,0) [-3.2768|3.2767] "mm" ECU
+ SG_ ClutchPressure : 16|16@1+ (0.001,0) [0|65.535] "kPa" ECU
+ SG_ ClutchState : 32|4@1- (1,0) [-8|7] "" ECU
+ SG_ BrakeState : 36|4@1- (1,0) [-8|7] "" ECU
+ SG_ TemplateVersion : 40|8@1+ (1,0) [0|255] "" ECU
+
+BO_ 1590 GearShiftControl: 8 ECU
+ SG_ EngineSpeedLimit : 0|16@1+ (0.166667,0) [0|10922.67] "rpm" ECU
+ SG_ IgnCut : 16|8@1+ (0.01,0) [0|2.55] "%" ECU
+ SG_ FuelCut : 24|8@1+ (0.01,0) [0|2.55] "%" ECU
+ SG_ IgnTimingLimitAdvance : 32|16@1- (0.1,0) [-3276.8|3276.7] "deg" ECU
+ SG_ ThrottleAim : 48|16@1+ (0.001,0) [0|65.535] "%" ECU
+
+BO_ 31 VCSData: 8 ECU
+ SG_ VCSCompound M : 0|8@1- (1,0) [0|255] "" ECU
+ SG_ VehicleSpeed m0 : 16|16@1+ (0.1,0) [0|6553.5] "km/h" ECU
+ SG_ EngineSpeed m0 : 32|16@1+ (36.0,0) [0|235929.6] "rpm" ECU
+ SG_ GearADLEncoded m0 : 48|8@1- (1,0) [-128|127] "" ECU
+
+ SG_ ThrottlePosition m1 : 16|16@1+ (0.001,0) [0|65.535] "%" ECU
+ SG_ BrakePressureMax m1 : 32|16@1+ (0.001,0) [0|65.535] "kPa" ECU
+ SG_ SteeringAngle m1 : 48|16@1- (0.1,0) [-3276.8|3276.7] "deg" ECU
+
+ SG_ AccelLong m2 : 16|16@1- (0.1019716,0) [-3276.8|3276.7] "G" ECU
+ SG_ AccelLat m2 : 32|16@1- (0.1019716,0) [-3276.8|3276.7] "G" ECU
+ SG_ LapDistance m2 : 48|16@1+ (1,0) [0|65535] "m" ECU
+
+ SG_ LapTimeRunning m3 : 16|16@1+ (0.01,0) [0|655.35] "s" ECU
+ SG_ LapNumber m3 : 32|16@1- (1,0) [-32768|32767] "" ECU
+ SG_ LapTime m3 : 48|16@1+ (0.01,0) [0|655.35] "s" ECU
+
+ SG_ GPSTimeHour m4 : 16|8@1+ (1,0) [0|255] "h" ECU
+ SG_ GPSTimeMinute m4 : 24|8@1+ (1,0) [0|255] "min" ECU
+ SG_ GPSTimeSecond m4 : 32|8@1+ (1,0) [0|255] "s" ECU
+ SG_ GPSDateDay m4 : 40|8@1+ (1,0) [0|255] "day" ECU
+ SG_ GPSDateMonth m4 : 48|8@1+ (1,0) [0|255] "month" ECU
+ SG_ GPSDateYear m4 : 56|8@1+ (1,0) [0|255] "year" ECU
+
+BO_ 1604 CutState: 8 ECU
+ SG_ IgnCutCount : 0|8@1+ (1,0) [0|255] "" ECU
+ SG_ FuelCutCount : 8|8@1+ (1,0) [0|255] "" ECU
+ SG_ IgnCutAvg : 16|8@1+ (0.01,0) [0|2.55] "%" ECU
+ SG_ FuelCutAvg : 24|8@1+ (0.01,0) [0|2.55] "%" ECU
+ SG_ InjPulseWidth1 : 32|8@1+ (0.0001,0) [0|0.0255] "s" ECU
+ SG_ IgnTimingState : 40|4@1- (1,0) [-8|7] "" ECU
+ SG_ IgnCutState : 44|4@1- (1,0) [-8|7] "" ECU
+ SG_ OilPressure : 48|16@1+ (0.01,0) [0|655.35] "kPa" ECU
+
+BO_ 1608 WheelSpeeds: 8 ECU
+ SG_ WheelSpeedFL : 0|16@1+ (0.1,0) [0|6553.5] "km/h" ECU
+ SG_ WheelSpeedFR : 16|16@1+ (0.1,0) [0|6553.5] "km/h" ECU
+ SG_ WheelSpeedRL : 32|16@1+ (0.1,0) [0|6553.5] "km/h" ECU
+ SG_ WheelSpeedRR : 48|16@1+ (0.1,0) [0|6553.5] "km/h" ECU
+
+BO_ 1648 FlexFuelBlend1: 8 ECU
+ SG_ FlexMode : 0|4@1- (1,0) [0|15] "" ECU
+ SG_ FlexDiag : 4|4@1- (1,0) [0|15] "" ECU
+ SG_ FlexPrimaryTimingBlend : 8|8@1+ (0.01,0) [0|2.55] "%" ECU
+ SG_ FlexSecondaryTimingBlend : 16|8@1+ (0.01,0) [0|2.55] "%" ECU
+ SG_ FlexIgnBlend : 24|8@1+ (0.01,0) [0|2.55] "%" ECU
+ SG_ FlexMixtureBlend : 32|8@1+ (0.01,0) [0|2.55] "%" ECU
+ SG_ FuelComposition : 40|8@1+ (0.01,0) [0|2.55] "%" ECU
+ SG_ FlexIgnition : 48|8@1- (0.5,0) [-64.0|63.5] "deg" ECU
+
+BO_ 1649 FlexFuelBlend2: 8 ECU
+ SG_ FlexPrimaryTiming : 0|16@1- (0.1,0) [-3276.8|3276.7] "deg" ECU
+ SG_ FlexSecondaryTiming : 16|16@1- (0.1,0) [-3276.8|3276.7] "deg" ECU
+ SG_ FlexMixtureAim : 32|16@1+ (0.01,0) [0|655.35] "Lambda" ECU
+
+BO_ 1650 DualFuelState: 8 ECU
+ SG_ AltFuelPressure : 0|16@1+ (0.0001,0) [0|6.5535] "kPa" ECU
+ SG_ AltFuelTempOffset : 16|8@1+ (1,40) [-40|215] "C" ECU
+ SG_ AltFuelEfficiency : 24|8@1+ (0.01,0) [0|2.55] "%" ECU
+ SG_ AltPumpState : 32|4@1- (1,0) [-8|7] "" ECU
+ SG_ AltPressWarn : 38|1@1+ (1,0) [0|1] "" ECU
+ SG_ AltPumpRelay : 39|1@1+ (1,0) [0|1] "" ECU
+
+BO_ 1609 TempAndVoltage: 8 ECU
+ SG_ CoolantTemp : 0|8@1+ (1,-40) [-40|215] "C" ECU
+ SG_ OilTemp : 8|8@1+ (1,-40) [-40|215] "C" ECU
+ SG_ FuelTemp : 16|8@1+ (1,-40) [-40|215] "C" ECU
+ SG_ AmbientTemp : 24|8@1+ (1,-40) [-40|215] "C" ECU
+ SG_ AirboxTemp : 32|8@1+ (1,-40) [-40|215] "C" ECU
+ SG_ BatteryVoltage : 40|8@1+ (0.1,0) [0|25.5] "V" ECU
+ SG_ FuelUsed : 48|16@1+ (1e5,0) [-9999.99|9999.99] "l" ECU
+
+BO_ 1610 ExhaustLoadLimit: 8 ECU
+ SG_ ExhaustTemp : 0|16@1+ (0.1,0) [0|6553.5] "C" ECU
+ SG_ EngineLoadAvg : 16|16@1+ (0.001,0) [0|65.535] "ratio" ECU
+ SG_ EngineSpeedLimit : 32|16@1+ (0.166667,0) [0|10922.67] "rpm" ECU
+ SG_ AmbientPressure : 48|16@1+ (0.01,0) [0|655.35] "kPa" ECU
+
+BO_ 1612 EngineStatus: 8 ECU
+ SG_ EngineRunTime : 0|16@1+ (1,0) [0|65535] "s" ECU
+ SG_ ECUUptime : 16|16@1+ (1,0) [0|65535] "s" ECU
+ SG_ WarningSource : 32|8@1+ (1,0) [0|255] "" ECU
+ SG_ WarnCoolantTemp : 40|1@1+ (1,0) [0|1] "" ECU
+ SG_ WarnCoolantPressure : 41|1@1+ (1,0) [0|1] "" ECU
+ SG_ WarnEngineSpeed : 42|1@1+ (1,0) [0|1] "" ECU
+ SG_ WarnOilTemp : 43|1@1+ (1,0) [0|1] "" ECU
+ SG_ WarnOilPressure : 44|1@1+ (1,0) [0|1] "" ECU
+ SG_ WarnCrankcase : 46|1@1+ (1,0) [0|1] "" ECU
+ SG_ WarnFuelPressure : 47|1@1+ (1,0) [0|1] "" ECU
+ SG_ WarnKnock : 48|1@1+ (1,0) [0|1] "" ECU
+
+BO_ 1613 SystemStates: 8 ECU
+ SG_ EngineState : 0|4@1+ (1,0) [0|15] "" ECU
+ SG_ FuelPumpState : 4|4@1+ (1,0) [0|15] "" ECU
+ SG_ AntiLagState : 8|4@1+ (1,0) [0|15] "" ECU
+ SG_ LaunchState : 12|4@1+ (1,0) [0|15] "" ECU
+ SG_ BoostAimState : 16|4@1+ (1,0) [0|15] "" ECU
+ SG_ OverrunState : 24|4@1+ (1,0) [0|15] "" ECU
+ SG_ FuelState : 28|4@1+ (1,0) [0|15] "" ECU
+ SG_ KnockState : 36|4@1+ (1,0) [0|15] "" ECU
+ SG_ ThrottleAimState : 40|4@1+ (1,0) [0|15] "" ECU
+ SG_ CLFuelState : 44|4@1+ (1,0) [0|15] "" ECU
+ SG_ SpeedRefState : 48|4@1+ (1,0) [0|15] "" ECU
+ SG_ Gear : 52|4@1- (1,0) [-8|7] "" ECU
+ SG_ SpeedLimState : 56|8@1+ (1,0) [0|255] "" ECU
+
+BO_ 1614 DriverSwitches: 8 ECU
+ SG_ AntiLagDiag : 0|4@1- (1,0) [-8|7] "" ECU
+ SG_ LaunchDiag : 4|4@1- (1,0) [-8|7] "" ECU
+ SG_ BoostCtrlDiag : 8|4@1- (1,0) [-8|7] "" ECU
+ SG_ FuelCutState : 12|4@1- (1,0) [-8|7] "" ECU
+ SG_ CLFuelDiag : 16|4@1- (1,0) [-8|7] "" ECU
+ SG_ OilPressLow : 24|1@1+ (1,0) [0|1] "" ECU
+ SG_ PitSwitch : 25|1@1+ (1,0) [0|1] "" ECU
+ SG_ LaunchSwitch : 26|1@1+ (1,0) [0|1] "" ECU
+ SG_ TractionSwitch : 27|1@1+ (1,0) [0|1] "" ECU
+ SG_ BrakeState : 28|1@1+ (1,0) [0|1] "" ECU
+ SG_ AntiLagSwitch : 29|1@1+ (1,0) [0|1] "" ECU
+ SG_ RunSwitch : 30|1@1+ (1,0) [0|1] "" ECU
+ SG_ NeutralSwitch : 31|1@1+ (1,0) [0|1] "" ECU
+
+BO_ 280 PDMStatus1: 8 ECU
+ SG_ EngineSpeedPDM : 0|8@1+ (0.0016666666666667,0) [0|42.5] "rpm" ECU
+ SG_ ThrottlePositionPDM : 8|8@1+ (0.01,0) [0|2.55] "%" ECU
+ SG_ VehicleSpeedPDM : 16|8@1+ (3.6,0) [0|918] "km/h" ECU
+ SG_ CoolantTempPDM : 24|8@1+ (1,0) [0|255] "C" ECU
+ SG_ OilTempPDM : 32|8@1+ (1,0) [0|255] "C" ECU
+ SG_ FuelTempPDM : 40|8@1+ (1,0) [0|255] "C" ECU
+ SG_ TransTempPDM : 48|8@1+ (1,0) [0|255] "C" ECU
+ SG_ DiffTempPDM : 56|8@1+ (1,0) [0|255] "C" ECU
+
+BO_ 281 PDMStatus2: 8 ECU
+ SG_ FuelPressurePDM : 0|8@1+ (0.0001,0) [0|0.0255] "kPa" ECU
+ SG_ SteeringAnglePDM : 16|16@1- (0.1,0) [-3276.8|3276.7] "deg" ECU
+ SG_ EngineRun : 32|1@1+ (1,0) [0|1] "" ECU
+ SG_ WarningActive : 33|1@1+ (1,0) [0|1] "" ECU
+ SG_ BrakeActive : 34|1@1+ (1,0) [0|1] "" ECU
+ SG_ NeutralSwitch : 35|1@1+ (1,0) [0|1] "" ECU
+ SG_ ClutchSwitch : 36|1@1+ (1,0) [0|1] "" ECU
+ SG_ ClutchState : 37|1@1+ (1,0) [0|1] "" ECU
+ SG_ PitSwitch : 38|1@1+ (1,0) [0|1] "" ECU
+ SG_ RunSwitch : 39|1@1+ (1,0) [0|1] "" ECU
+ SG_ DriverSwitch1 : 40|1@1+ (1,0) [0|1] "" ECU
+ SG_ DriverSwitch2 : 41|1@1+ (1,0) [0|1] "" ECU
+ SG_ RotarySwitch1 : 48|8@1- (1,0) [-128|127] "" ECU
+ SG_ RotarySwitch2 : 56|8@1- (1,0) [-128|127] "" ECU
