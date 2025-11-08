@@ -14,15 +14,11 @@ def write_to_influxDB(FILE_INPUT: str):
     ORG: str
     TOKEN: str
 
-    with open(
-        "src/known-to-influxdb/influxdb2_parameters/influxdb2-admin-token", "r"
-    ) as file:
+    with open("data/influxdb2_parameters/influxdb2-admin-token") as file:
         HOST_NAME = file.read()
-    with open("src/known-to-influxdb/influxdb2_parameters/influxdb2-org", "r") as file:
+    with open("data/influxdb2_parameters/influxdb2-org") as file:
         ORG = file.read()
-    with open(
-        "src/known-to-influxdb/influxdb2_parameters/influxdb2-admin-token", "r"
-    ) as file:
+    with open("data/influxdb2_parameters/influxdb2-admin-token") as file:
         TOKEN = file.read()
 
     """
