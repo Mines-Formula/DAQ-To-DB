@@ -1,23 +1,34 @@
 import cantools
 import pandas as pd
 
+"""
+@author Magnus Van Zyl
+Script to convert raw canbus data into readable data in a csv file in the format 'Timestamp,CANID,SENSOR,Value,Unit'.
+"""
+
 def make_known(unknown_file_name: str, output_file_name: str):
 
-    """Takes input file of unknown data and decodes it writing into a csv. Uses MF13Beta.dbc file.
+    """
+    Takes input file of unknown data and decodes it writing into a csv. Uses MF13Beta.dbc file.
     
     :param unknown_file_name: Name of the file with unknown/raw data
     :param output_file_name: Name of the csv file decoded data will be written to
     """
-
+    # === LOAD DBC ===
     db = cantools.database.load_file('MF13Beta.dbc')
-    fields = ['Timestamp', 'CANID', 'Sensor', 'Value', 'Unit'] #Timestamp,CANID,Sensor,Value,Unit
+
+    # === DEFINE HEADERS AND FILE PATHS ===
+    fields = ['Timestamp', 'CANID', 'Sensor', 'Value', 'Unit']
     data_file = unknown_file_name
     output_file = output_file_name
 
+    # === READS RAW DATA ===
     with open(data_file, 'r') as unknown:
         header = unknown.readline()
         data = []
-        print(header)
+        print(header) #This is just to get the header out of the way
+
+    # === ADDS DATA TO LIST, FORMATTED [timestamp,canID,dataBytes]
         for line in unknown:
             dataLst = []
             lineLst = line.split(',')
@@ -26,18 +37,16 @@ def make_known(unknown_file_name: str, output_file_name: str):
             canID = int(lineLst[1])
             dataLst.append(canID)
             dataDecimal = lineLst[2:]
-            # for i in range(len(dataDecimal)):
-            #     dataDecimal[i] = hex(int(dataDecimal[i].strip()))
-            # dataBytes = bytes('/'.join(dataDecimal), 'ascii')
             for i in range(len(dataDecimal)):
                 dataDecimal[i] = int(dataDecimal[i].strip())
             dataBytes = bytes(dataDecimal)
             dataLst.append(dataBytes)
-            # print(dataLst)
             data.append(dataLst)
 
     failed_lines = 0
-    skipped_ids = []
+    skipped_ids = [] # List of CAN IDs that are found in data_file but not in the dbc
+
+    # === DECODES dataBytes TO BE WRITTEN INTO CSV ===
     writable_lines = []
     for dataset in data:
         try:
@@ -56,36 +65,20 @@ def make_known(unknown_file_name: str, output_file_name: str):
                 values.append(value)
                 unit = signal.unit
                 if unit == None:
-                    unit = ''
+                    unit = '' # For sensors with undefined units in dbc, adds empty string
                 units.append(unit)
-                # print(f'{sensor},{value},{unit} END')
-                # print(f'UNIT TYPE: {type(unit)}')
-                # print('')
-            # print(dataset)
-            # print(decoded)
-            # print(type(decoded))
-            # print(decoded.keys()) #decode.keys prints "dict_keys(['XRoll', 'YRoll', 'ZRoll', 'GyroTemp'])"
-            # sensors = list(decoded.keys())
-            # print(sensors) #Listing decode.keys() just returns the list "['XRoll', 'YRoll', 'ZRoll', 'GyroTemp']"
             write_this.append(sensors)
-            # for sensor in sensors:
-            #     value = decoded[sensor]
-            #     values.append(value)
             write_this.append(values)
             write_this.append(units)
             writable_lines.append(write_this)
-            # print(write_this)
-            # print('')
 
         except Exception as e:
-            # print(dataset)
-            # print(f'Decode Failure ---> {e}')
-            # print('')
             if dataset[1] not in skipped_ids:
                 skipped_ids.append(dataset[1])
             failed_lines += 1
             continue
 
+    # === WRITES DECODED DATA TO OUTPUT FILE ===
     with open(output_file, 'w') as file:
         file.write(f'{','.join(fields)}\n')
         for line in writable_lines:
@@ -96,7 +89,6 @@ def make_known(unknown_file_name: str, output_file_name: str):
                 val = line[3][i]
                 unt = line[4][i]
                 data_entry = f'{time},{canbus_id},{sense},{val},{unt}\n'
-                # print(data_entry)
                 file.write(data_entry)
 
     print(f'DATA DECODED INTO FILE: {output_file}')
