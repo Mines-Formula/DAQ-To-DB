@@ -14,7 +14,7 @@ def write_to_influxDB(FILE_INPUT:str, BUCKET_NAME:str):
     TOKEN:str
 
     with open("srck/known-to-influxdb/influxdb2_parameters/influxdb2-admin-token", "r") as file:
-        ORG = file.read()
+        HOST_NAME = file.read()
     with open("src\known-to-influxdb\influxdb2_parameters\influxdb2-org", "r") as file:
         ORG = file.read()
     with open("src/known-to-influxdb/influxdb2_parameters/influxdb2-admin-token", "r") as file:
@@ -26,7 +26,7 @@ def write_to_influxDB(FILE_INPUT:str, BUCKET_NAME:str):
     '''    
     command = [
         "influx", "write",
-        "--host", 
+        "--host", HOST_NAME,
         "--bucket", BUCKET_NAME,
         "--file", FILE_PATH,
         "--org", ORG,
