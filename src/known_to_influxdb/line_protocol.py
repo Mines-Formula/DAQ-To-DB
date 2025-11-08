@@ -56,7 +56,7 @@ def convert_to_lineprotocol(FILE_NAME: str, FILE_OUTPUT: str):
                 chunk["Sensor"].map(esc_measure)
                 + ",tag1="
                 + chunk["CANID"].map(esc_tag)
-                + " fieldKey="
+                + " field1="
                 + chunk["Value"]
                 + " "
                 + chunk["Timestamp"]

@@ -3,7 +3,7 @@ services:
     build: .
     container_name: data-to-db
     ports:
-      - "6969:6969"
+      - "6969:6969" # Data upload server
     volumes:
       - ./app/data:/app/data
       - ./app/templates:/app/templates
