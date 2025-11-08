@@ -76,7 +76,7 @@ def convert_file(file: FileStorage) -> None:
             str(line_path.resolve()),
         )  # Convert .csv to .line and save to temp dir
 
-        # write_to_influxDB.write_to_influxDB(csv_filename)
+        write_to_influxDB.write_to_influxDB(csv_filename)
 
 
 if __name__ == "__main__":
