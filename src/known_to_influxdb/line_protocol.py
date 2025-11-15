@@ -28,8 +28,12 @@ def convert_to_lineprotocol(FILE_NAME: str, FILE_OUTPUT: str):
     # convert input CSV to Unix Time
     FILE_NAME_BASE, ending = os.path.splitext(FILE_NAME)
     FILE_NAME_UNIX = FILE_NAME_BASE + "_unixtime" + ending
-    convert_unix_time.convert_to_unix(FILE_NAME, FILE_NAME_UNIX)
 
+    try:
+        convert_unix_time.convert_to_unix(FILE_NAME, FILE_NAME_UNIX)
+    except ValueError as e:
+        raise e
+    
     with open(FILE_OUTPUT, "w", encoding="utf-8", newline="\n") as out:
         df = pd.read_csv(FILE_NAME_UNIX)
         df = df.drop_duplicates()

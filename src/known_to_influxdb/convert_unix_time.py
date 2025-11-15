@@ -15,6 +15,9 @@ def build_time_ref(file) -> float:
     DateRow = df[(df["Sensor"] == "Date")]  # DDMMYY
     TimeRow = df[(df["Sensor"] == "Time")]  # HHMMSS.sss
 
+    if(TimeRow.size == 0 or DateRow.size == 0):
+        raise(ValueError("Time or Date data entry missing"))
+
     Date: str = str(DateRow["Value"].iloc[-1])
     Time: int = int(TimeRow["Value"].iloc[-1])
 
@@ -54,7 +57,11 @@ def convert_to_unix(FILE_NAME: str, FILE_OUTPUT: str):
     """
 
     # Build the reference mapping once (optimization to make code run faster)
-    time_ref: float = build_time_ref(FILE_NAME)
+    try:
+        time_ref: float = build_time_ref(FILE_NAME)
+    except ValueError as e:
+        raise e
+
     header_written = False
     for chunk in pd.read_csv(
         FILE_NAME,
