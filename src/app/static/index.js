@@ -30,30 +30,49 @@ fileInput.addEventListener('change', (e) => {
   handleFiles(e.target.files);
 });
 
-async function handleFiles(files) {
+function handleFiles(files) {
   const formData = new FormData();
-
   for (const file of files) {
     formData.append(file.name, file);
   }
 
-  try {
-    const res = await fetch('/upload', {
-      method: 'POST',
-      body: formData,
-    });
+  // Clear previous alerts
+  alertContainer.innerHTML = '';
 
-    const data = await res.json();
+  // Create a temporary endpoint for SSE upload
+  // We use fetch to POST the files, then listen for SSE progress
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/upload", true);
 
-    if (!res.ok) {
-      showAlert(data.error || 'Upload failed', 'danger');
-    } else {
-      showAlert(data.message, 'success');
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === XMLHttpRequest.DONE && xhr.status !== 200) {
+      showAlert("Upload failed or server error.", "danger");
     }
-  } catch (err) {
-    showAlert('Error connecting to server.', 'danger');
-    console.error(err);
-  }
+  };
+
+  xhr.onload = function() {
+    console.log("Upload request finished.");
+  };
+
+  // Listen for SSE events via a custom EventSource
+  xhr.upload.addEventListener("load", () => {
+    // After upload finishes, connect to SSE stream
+    const evtSource = new EventSource("/upload"); // Flask sends SSE here
+    evtSource.onmessage = function(event) {
+      appendStatus(event.data);
+    };
+    evtSource.onerror = function() {
+      evtSource.close();
+    };
+  });
+
+  xhr.send(formData);
+}
+
+function appendStatus(message) {
+  const div = document.createElement("div");
+  div.textContent = message;
+  alertContainer.appendChild(div);
 }
 
 function showAlert(message, type) {
