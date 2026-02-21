@@ -27,8 +27,10 @@ def deserialize(input_filepath: str, output_filepath: str) -> None:
     cur_data_index = 0
     string_read_mode = False
 
+    print(len(input_data))
     for i, byte in enumerate(input_data):
-
+        if i % 50_000 == 0:
+            print(f"Enumeration: {i}\n")
         # tranisiton to reading next line
         if cur_data_index == data_length:
             data_length = byte
@@ -59,6 +61,7 @@ def deserialize(input_filepath: str, output_filepath: str) -> None:
                     output_string += str(byte) + ","
             cur_data_index += 1
 
+    print(f"{cur_data_index}\n{data_length}\n")
     if cur_data_index != data_length:
         raise Exception("file corruption detected")
 

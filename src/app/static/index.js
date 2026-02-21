@@ -1,3 +1,5 @@
+const POLL_INTERVAL = 2000;
+
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 const alertContainer = document.getElementById('alertContainer');
@@ -120,7 +122,7 @@ function startPolling(taskName) {
       pollIntervalId = null;
       showAlert('Error while checking progress.', 'danger');
     }
-  }, 500);
+  }, POLL_INTERVAL);
 }
 
 function updateProgressDisplay(percent) {
