@@ -15,3 +15,9 @@
     background-color: #f8d7da !important;
     border-color: #dc3545 !important;
 }
+
+#alertContainer {
+    width: 50%;
+    margin: 1rem auto 0 auto;
+    text-align: center;
+}

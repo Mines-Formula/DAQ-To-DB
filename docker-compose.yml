@@ -1,12 +1,12 @@
 services:
-  web:
-    build: .
-    container_name: data-to-db
+  web: 
+    build:
+      context: ./src
+    stop_signal: SIGINT
     ports:
-      - "6969:6969"
+      - "6767:6767" 
     volumes:
-      - ./app/data:/app/data
-      - ./app/templates:/app/templates
+      - ./data:/data
     environment:
       - FLASK_ENV=production
-    restart: unless-stopped
+      - DATA_DIR=/data
