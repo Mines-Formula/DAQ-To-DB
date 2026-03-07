@@ -133,16 +133,16 @@ def convert_file(file: FileStorage) -> None:
         file.save(raw_data_path)
         conversion_progress.progress = 20
 
-#        try:
-#            deserializer.deserialize(
-#                str(raw_data_path.resolve()), str(unknown_data_path.resolve())
-#            )
-#        except Exception as exec:
-#            conversion_progress.exception = exec
-#            return
-#        else:
-#            conversion_progress.progress = 20
-
+        try:
+            deserializer.deserialize(
+                str(raw_data_path.resolve()), str(unknown_data_path.resolve())
+            )
+        except Exception as _:
+            pass
+        else:
+            raw_data_path = unknown_data_path
+            conversion_progress.progress = 20
+        
         try:
             decode.make_known(str(raw_data_path.resolve()), str(csv_path.resolve()))
         except Exception as exec:
