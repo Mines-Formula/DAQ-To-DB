@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from flask import Flask, jsonify, render_template, request
 from pathlib import Path
+from datetime import datetime
 from known_to_influxdb import line_protocol, write_to_influxDB
 from unknown_to_known import decode
 from csv_to_rerun import csv_to_rerun
@@ -189,7 +190,15 @@ def list_files():
 
     try:
         dir = RERUN_DIR if type_ == "csv" else CSV_DIR
-        files = [path.name for path in dir.iterdir() if path.is_file()]
+        files = []
+        for path in dir.iterdir():
+            if path.is_file():
+                files.append(
+                    {
+                        "name": path.name,
+                        "timestamp": datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")                    }
+                )
+        files.sort(key=lambda f: f["timestamp"], reverse=True)
         return jsonify(files)
     except FileNotFoundError:
         return jsonify([]), 200

@@ -155,18 +155,28 @@ async function loadFiles(type) {
       li.className =
           'list-group-item d-flex justify-content-between align-items-center';
 
+      const leftDiv = document.createElement('div');
+      leftDiv.className = 'd-flex flex-column me-2 overflow-hidden';
+
       const nameSpan = document.createElement('span');
-      nameSpan.textContent = file;
+      nameSpan.textContent = file.name;
       nameSpan.className = 'me-2 text-truncate';
       nameSpan.style.maxWidth = '240px';
 
+      const timeSpan = document.createElement('small');
+      timeSpan.textContent = file.timestamp;
+      timeSpan.className = 'text-muted';
+
+      leftDiv.appendChild(nameSpan);
+      leftDiv.appendChild(timeSpan);
+      
       const downloadA = document.createElement('a');
       downloadA.className = 'btn btn-sm btn-outline-primary';
       downloadA.textContent = 'Download';
       downloadA.href = `/files/download/${encodeURIComponent(file)}`;
       downloadA.setAttribute('download', '');
 
-      li.appendChild(nameSpan);
+      li.appendChild(leftDiv);
       li.appendChild(downloadA);
       list.appendChild(li);
     }
