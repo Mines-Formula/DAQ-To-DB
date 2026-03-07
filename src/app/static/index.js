@@ -1,3 +1,5 @@
+const POLL_INTERVAL = 2000;
+
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 const alertContainer = document.getElementById('alertContainer');
@@ -59,7 +61,7 @@ function handleFiles(files) {
   })
       .then((response) => {
         if (!response.ok) {
-          throw new Error('Upload failed or server error.');
+          throw new Error(`??? Yo ${response.statusText.toLowerCase()}`);
         }
         return response.json();
       })
@@ -69,7 +71,6 @@ function handleFiles(files) {
           throw new Error('Server did not return a task name.');
         }
 
-        // Start polling /progress with this task name
         startPolling(taskName);
       })
       .catch((error) => {
@@ -113,7 +114,7 @@ function startPolling(taskName) {
         clearInterval(pollIntervalId);
         pollIntervalId = null;
         showAlert('Upload and processing complete!', 'success');
-        loadFiles();
+        loadAllFiles();
       }
     } catch (err) {
       console.error(err);
@@ -121,7 +122,7 @@ function startPolling(taskName) {
       pollIntervalId = null;
       showAlert('Error while checking progress.', 'danger');
     }
-  }, 500);
+  }, POLL_INTERVAL);
 }
 
 function updateProgressDisplay(percent) {
@@ -135,12 +136,12 @@ function showAlert(message, type) {
   `;
 }
 
-async function loadFiles() {
-  const list = document.getElementById('fileList');
+async function loadFiles(type) {
+  const list = document.getElementById(`${type}fileList`);
   list.innerHTML = '';
 
   try {
-    const res = await fetch('/files');
+    const res = await fetch(`/files?type=${type}`);
     const files = await res.json();
 
     if (files.length === 0) {
@@ -176,4 +177,9 @@ async function loadFiles() {
   }
 }
 
-loadFiles();
+async function loadAllFiles() {
+  loadFiles('csv');
+  loadFiles('rerun');
+}
+
+loadAllFiles();

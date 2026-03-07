@@ -9,7 +9,7 @@ def write_to_influxDB(FILE_INPUT: str):
     :param FILE_INPUT: Name of .line File
     :param BUCKET_NAME: Name of Output File
     """
-    BUCKET_NAME: str = "NEWPIPELINETESTING"
+    BUCKET_NAME: str = "MF13"
     FILE_PATH: str = FILE_INPUT
     HOST_NAME: str
     ORG: str
