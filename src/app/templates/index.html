@@ -27,15 +27,27 @@
         <div id="alertContainer"></div>
     </div>
 
-    <div class="card mt-4 w-100" style="max-width: 400px;">
-        <div class="card-header fw-semibold">
-            Rerun Files
-        </div>
-        <ul id="fileList" class="list-group list-group-flush">
-            <li class="list-group-item text-muted">Loading…</li>
-        </ul>
-    </div>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-sm m-2 card" style="max-width: 25rem;">
+                <div class="card-header fw-semibold">
+                    Rerun Files
+                </div>
+                <ul id="csvfileList" class="list-group list-group-flush" style="height: 25rem; overflow: auto;">
+                    <li class="list-group-item text-muted">Loading…</li>
+                </ul>
+            </div>
 
+            <div class="col-sm m-2 card " style="max-width: 25rem">
+                <div class="card-header fw-semibold">
+                    CSV Files
+                </div>
+                <ul id="rerunfileList" class="list-group list-group-flush" style="height: 25rem; overflow: auto;">
+                    <li class="list-group-item text-muted">Loading…</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='index.js') }}"></script>

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from flask import Flask, jsonify, render_template, request
 from pathlib import Path
+from datetime import datetime
 from known_to_influxdb import line_protocol, write_to_influxDB
 from unknown_to_known import decode
 from csv_to_rerun import csv_to_rerun
@@ -69,7 +70,7 @@ def upload_data():
     if len(request.files) == 0:
         return jsonify({"error": "No file uploaded"}), 400
 
-    if not all(
+    if not any(
         file.filename and allowed_file(file.filename) for file in request.files.values()
     ):
         return jsonify({"error": "Invalid types uploaded."}), 400
@@ -137,14 +138,14 @@ def convert_file(file: FileStorage) -> None:
             deserializer.deserialize(
                 str(raw_data_path.resolve()), str(unknown_data_path.resolve())
             )
-        except Exception as exec:
-            conversion_progress.exception = exec
-            return
+        except Exception as _:
+            pass
         else:
+            raw_data_path = unknown_data_path
             conversion_progress.progress = 20
-
+        
         try:
-            decode.make_known(str(unknown_data_path.resolve()), str(csv_path.resolve()))
+            decode.make_known(str(raw_data_path.resolve()), str(csv_path.resolve()))
         except Exception as exec:
             conversion_progress.exception = exec
             return
@@ -157,6 +158,7 @@ def convert_file(file: FileStorage) -> None:
                 str(line_path.resolve()),
             )
         except Exception as exec:
+            raise
             conversion_progress.exception = exec
             return
         else:
@@ -181,8 +183,22 @@ def convert_file(file: FileStorage) -> None:
 
 @app.route("/files")
 def list_files():
-    try:  # May also wants data/csv to be included?
-        files = [path.name for path in RERUN_DIR.iterdir() if path.is_file()]
+    type_ = request.args.get("type", "").casefold()
+
+    if type_ not in ("csv", "rerun"):
+        return "Invalid type!", 400
+
+    try:
+        dir = RERUN_DIR if type_ == "csv" else CSV_DIR
+        files = []
+        for path in dir.iterdir():
+            if path.is_file():
+                files.append(
+                    {
+                        "name": path.name,
+                        "timestamp": datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")                    }
+                )
+        files.sort(key=lambda f: f["timestamp"], reverse=True)
         return jsonify(files)
     except FileNotFoundError:
         return jsonify([]), 200
@@ -190,7 +206,12 @@ def list_files():
 
 @app.route("/files/download/<path:filename>")
 def download_file(filename):
-    return send_from_directory(RERUN_DIR, filename, as_attachment=True)
+    if (RERUN_DIR / Path(filename)).exists():
+        dir = RERUN_DIR
+    else:
+        dir = CSV_DIR
+
+    return send_from_directory(dir, filename, as_attachment=True)
 
 
 if __name__ == "__main__":

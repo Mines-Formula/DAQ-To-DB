@@ -15,6 +15,9 @@ def build_time_ref(file) -> float:
     DateRow = df[(df["Sensor"] == "Date")]  # DDMMYY
     TimeRow = df[(df["Sensor"] == "Time")]  # HHMMSS.sss
 
+    if DateRow.size == 0 or TimeRow.size == 0:
+        return datetime.now().timestamp() * 1000
+
     Date: str = str(DateRow["Value"].iloc[-1])
     Time: int = int(TimeRow["Value"].iloc[-1])
 

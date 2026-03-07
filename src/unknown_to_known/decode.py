@@ -90,13 +90,13 @@ def make_known(unknown_file_name: str, output_file_name: str):
             continue
 
     # === CHECK FOR TIME VALUES ===
-    no_time = True
-    for line in writable_lines:
-        for i in range(len(line[2])):
-            if line[2][i] == "Time" and line[3][i] != None:
-                no_time = False
-    if no_time:
-        raise ValueError("Time sensor with no value")
+#    no_time = True
+#    for line in writable_lines:
+#        for i in range(len(line[2])):
+#            if line[2][i] == "Time" and line[3][i] != None:
+#                no_time = False
+#    if no_time:
+#        raise ValueError("Time sensor with no value")
 
     # === WRITES FAILED LINES TO LOG FILE ===
     for i in range(len(failed_lines_raw)):
