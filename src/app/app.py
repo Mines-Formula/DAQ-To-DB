@@ -189,14 +189,15 @@ def list_files():
         return "Invalid type!", 400
 
     try:
-        dir = RERUN_DIR if type_ == "csv" else CSV_DIR
+        dir = CSV_DIR if type_ == "csv" else RERUN_DIR
         files = []
         for path in dir.iterdir():
             if path.is_file():
                 files.append(
                     {
                         "name": path.name,
-                        "timestamp": datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")                    }
+                            "timestamp": datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+                        }
                 )
         files.sort(key=lambda f: f["timestamp"], reverse=True)
         return jsonify(files)
