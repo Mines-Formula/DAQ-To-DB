@@ -1,5 +1,4 @@
 # ADAPTED FROM: https://github.com/Mines-Formula/DBCProcesser/blob/main/daq_deserializer.py
-
 import os
 
 
@@ -9,62 +8,47 @@ def deserialize(input_filepath: str, output_filepath: str) -> None:
 
     with open(input_filepath, "rb") as file:
         input_data = file.read()
-    output_string = ""
 
-    # Data file structure
+    output_parts = []
+    i = 0
+    data_size = len(input_data)
 
-    # String structure
-    # 1B length + 127
-    # xB data
+    while i < data_size:
+        header_byte = input_data[i]
+        i += 1
 
-    # CAN message structure
-    # 1B length
-    # 4B time (big endian)
-    # 4B message id (big endian)
-    # xB data
+        if header_byte > 127:
+            # String record
+            length = header_byte - 127
 
-    data_length = 0
-    cur_data_index = 0
-    string_read_mode = False
+            if i + length > data_size:
+                raise Exception("file corruption detected")
 
-    print(len(input_data))
-    for i, byte in enumerate(input_data):
-        if i % 50_000 == 0:
-            print(f"Enumeration: {i}\n")
-        # tranisiton to reading next line
-        if cur_data_index == data_length:
-            data_length = byte
-            output_string = output_string[:-1]  # remove previous line's trailing comma
-            output_string += "\n"
-            if byte > 127:
-                data_length -= 127
-                string_read_mode = True
-                cur_data_index = 0  # start directly at the string data
-            else:
-                string_read_mode = False
-                cur_data_index = -8  # start by reading this line's metadata
+            # Closest behavior to original chr(byte) logic
+            string_content = "".join(map(chr, input_data[i:i + length]))
+            output_parts.append(string_content)
+            i += length
 
-        # read data in current line
         else:
-            if string_read_mode:
-                output_string += chr(byte)
+            # CAN record
+            length = header_byte
+
+            if i + 8 + length > data_size:
+                raise Exception("file corruption detected")
+
+            time_val = int.from_bytes(input_data[i:i + 4], "big")
+            msg_id = int.from_bytes(input_data[i + 4:i + 8], "big")
+            payload = input_data[i + 8:i + 8 + length]
+
+            if length > 0:
+                row = f"{time_val},{msg_id},{','.join(map(str, payload))}"
             else:
-                if (
-                    cur_data_index < 0
-                ):  # read message metadata (time and id, each 4 bytes)
-                    relative_index = (cur_data_index + 1) % 4
-                    if relative_index == 0:
-                        number = int.from_bytes(input_data[i - 3 : i + 1])
-                        output_string += str(number) + ","
+                row = f"{time_val},{msg_id}"
 
-                else:
-                    output_string += str(byte) + ","
-            cur_data_index += 1
+            output_parts.append(row)
+            i += 8 + length
 
-    print(f"{cur_data_index}\n{data_length}\n")
-    if cur_data_index != data_length:
-        raise Exception("file corruption detected")
+        output_parts.append("\n")
 
-    output_string = output_string[:-1]  # remove final trailing comma
     with open(output_filepath, "w") as file:
-        file.write(output_string)
+        file.write("".join(output_parts).rstrip("\n"))
