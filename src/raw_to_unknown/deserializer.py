@@ -1,4 +1,13 @@
-# ADAPTED FROM: https://github.com/Mines-Formula/DBCProcesser/blob/main/daq_deserializer.py
+'''
+NOTE: original code was adapted from the DBC repo in github.
+This code was found to be unacceptably slow for this use case,
+in the mean time, an untested, patch version has been created.
+
+This code requires more testing and refactoring in the future.
+
+@author Will Turchin
+
+'''
 import os
 
 

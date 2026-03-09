@@ -103,6 +103,7 @@ function startPolling(taskName) {
       if (data.exception.present) {
         clearInterval(pollIntervalId);
         pollIntervalId = null;
+        updateProgressDisplay(0);
         return showAlert(`Error: ${data.exception.type}`, 'danger');
       }
 
@@ -120,6 +121,7 @@ function startPolling(taskName) {
       console.error(err);
       clearInterval(pollIntervalId);
       pollIntervalId = null;
+      updateProgressDisplay(0);
       showAlert('Error while checking progress.', 'danger');
     }
   }, POLL_INTERVAL);
