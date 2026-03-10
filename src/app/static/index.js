@@ -103,6 +103,7 @@ function startPolling(taskName) {
       if (data.exception.present) {
         clearInterval(pollIntervalId);
         pollIntervalId = null;
+        updateProgressDisplay(0);
         return showAlert(`Error: ${data.exception.type}`, 'danger');
       }
 
@@ -120,6 +121,7 @@ function startPolling(taskName) {
       console.error(err);
       clearInterval(pollIntervalId);
       pollIntervalId = null;
+      updateProgressDisplay(0);
       showAlert('Error while checking progress.', 'danger');
     }
   }, POLL_INTERVAL);
@@ -173,7 +175,7 @@ async function loadFiles(type) {
       const downloadA = document.createElement('a');
       downloadA.className = 'btn btn-sm btn-outline-primary';
       downloadA.textContent = 'Download';
-      downloadA.href = `/files/download/${encodeURIComponent(file)}`;
+      downloadA.href = `/files/download/${encodeURIComponent(file.name)}`;
       downloadA.setAttribute('download', '');
 
       li.appendChild(leftDiv);
