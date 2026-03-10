@@ -104,10 +104,11 @@ function startPolling(taskName) {
         clearInterval(pollIntervalId);
         pollIntervalId = null;
         updateProgressDisplay(0);
-        return showAlert(`Error: ${data.exception.type}`, 'danger');
+        showAlert(`Error: ${data.exception.type}`, 'danger');
+        return;
       }
 
-      const progress = typeof data.progress === 'number' ? data.progress : 0;
+      const progress = data.progress;
 
       updateProgressDisplay(progress);
 
@@ -128,7 +129,6 @@ function startPolling(taskName) {
 }
 
 function updateProgressDisplay(percent) {
-  // const clamped = Math.min(Math.max(percent, 0), 100);
   showAlert(`Processing: ${percent}`, 'info');
 }
 

@@ -1,5 +1,7 @@
 app/data/*
 data/rerun/*
+infra/.submodule_head_last_seen
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -131,12 +133,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
-
-*.csv
-*.rr
-*.line
-
-data/influxdb2_parameters
 
 *.csv
 *.rr
