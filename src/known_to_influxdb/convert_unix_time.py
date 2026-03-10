@@ -18,7 +18,7 @@ def build_time_ref(file) -> float:
     if DateRow.size == 0 or TimeRow.size == 0:
         return datetime.now().timestamp() * 1000
 
-    Date: str = str(DateRow["Value"].iloc[-1])
+    Date: str = str(int(DateRow["Value"].iloc[-1]))
     Time: int = int(TimeRow["Value"].iloc[-1])
 
     while (
