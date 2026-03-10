@@ -132,7 +132,7 @@ def convert_file(file: FileStorage) -> None:
         line_path = CSV_DIR / line_filename
 
         file.save(raw_data_path)
-        conversion_progress.progress = 20
+        conversion_progress.progress = "deserialize"
 
         try:
             deserializer.deserialize(
@@ -142,7 +142,7 @@ def convert_file(file: FileStorage) -> None:
             pass
         else:
             raw_data_path = unknown_data_path
-            conversion_progress.progress = 20
+            conversion_progress.progress = "making known"
         
         try:
             decode.make_known(str(raw_data_path.resolve()), str(csv_path.resolve()))
@@ -150,7 +150,7 @@ def convert_file(file: FileStorage) -> None:
             conversion_progress.exception = exec
             return
         else:
-            conversion_progress.progress = 40
+            conversion_progress.progress = "line protocol "
 
         try:
             line_protocol.convert_to_lineprotocol(
@@ -162,7 +162,7 @@ def convert_file(file: FileStorage) -> None:
             conversion_progress.exception = exec
             return
         else:
-            conversion_progress.progress = 60
+            conversion_progress.progress = "uploading to influx"
 
         try:
             write_to_influxDB.write_to_influxDB(str(line_path.resolve()))
@@ -170,7 +170,7 @@ def convert_file(file: FileStorage) -> None:
             conversion_progress.exception = exec
             return
         else:
-            conversion_progress.progress = 80
+            conversion_progress.progress = "creating rerun file"
 
         try:
             csv_to_rerun.convert(csv_path.resolve(), RERUN_DIR)

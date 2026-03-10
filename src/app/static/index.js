@@ -128,8 +128,8 @@ function startPolling(taskName) {
 }
 
 function updateProgressDisplay(percent) {
-  const clamped = Math.min(Math.max(percent, 0), 100);
-  showAlert(`Processing: ${clamped}%`, 'info');
+  // const clamped = Math.min(Math.max(percent, 0), 100);
+  showAlert(`Processing: ${percent}`, 'info');
 }
 
 function showAlert(message, type) {
