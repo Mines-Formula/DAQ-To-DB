@@ -98,3 +98,27 @@ body {
     border-bottom: 1px solid var(--border-color) !important;
     color: var(--accent-navy);
 }
+
+#alertContainer {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+#alertContainer .alert {
+    display: inline-block;
+    min-width: 300px;
+    max-width: 600px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border: none;
+}
+
+.alert-success {
+    border-color: #28a745;
+}
+
+.alert-danger {
+    border-color: var(--accent-orange);
+}
