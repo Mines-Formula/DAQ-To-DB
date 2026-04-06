@@ -171,7 +171,7 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
         try:
             if is_debug:
                 app.logger.info(
-                    "Skipping upload to InfluxDB due to debug mode enabled."
+                    f"Thread {current_thread_name}: Skipping InfluxDB upload (Debug Mode)."
                 )
             else:
                 write_to_influxDB.write_to_influxDB(str(line_path.resolve()))
