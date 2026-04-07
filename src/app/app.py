@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from flask import Flask, jsonify, render_template, request
 from pathlib import Path
 from datetime import datetime
+
 from known_to_influxdb import line_protocol, write_to_influxDB
 from unknown_to_known import decode
 from csv_to_rerun import csv_to_rerun
@@ -18,6 +19,8 @@ import threading
 from flask import send_from_directory
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from werkzeug.datastructures.file_storage import FileStorage
 
 
@@ -41,7 +44,7 @@ def get_progress():
     if thread_name is None:
         return jsonify({"message": "No name parameter provided!"}), 400
 
-    progress: ConversionProgress = app.config["tasks"].get(thread_name)
+    progress: ConversionProgress | None = app.config["tasks"].get(thread_name)
     if progress is None:
         return jsonify({"message": "Unknown task name."}), 404
 
@@ -57,7 +60,7 @@ def get_progress():
                 },
             }
         ),
-        200,
+        200 if progress.finished else 202,
     )
 
 
@@ -75,25 +78,28 @@ def upload_data():
     ):
         return jsonify({"error": "Invalid types uploaded."}), 400
 
+    debug_enabled = request.form.get("debug") == "true"
+
     # Read all file contents upfront to avoid closed file errors
     files_data = [(file.filename, file.read()) for file in request.files.values()]
 
     conversion_thread = threading.Thread(
         target=convert_files,
         args=(files_data,),
+        kwargs=dict(is_debug=debug_enabled),
         daemon=True,
         name=urandom(8).hex(),
     )
 
     app.config["tasks"][conversion_thread.name] = ConversionProgress(
-        name=conversion_thread.name
+        name=conversion_thread.name, progress="starting"
     )
     conversion_thread.start()
 
     return jsonify({"name": conversion_thread.name})
 
 
-def convert_files(files):
+def convert_files(files, **kwargs: Any):
     for filename, content in files:
         # Create a temporary FileStorage-like object for conversion
         from io import BytesIO
@@ -103,10 +109,10 @@ def convert_files(files):
             stream=BytesIO(content), name=filename, filename=filename
         )
 
-        convert_file(file_like)
+        convert_file(file_like, **kwargs)
 
 
-def convert_file(file: FileStorage) -> None:
+def convert_file(file: FileStorage, is_debug: bool) -> None:
     """
     Converts .data following this flow:
         .data (raw) -> .data (unknown) -> .csv (known) -> .line (known)
@@ -143,7 +149,7 @@ def convert_file(file: FileStorage) -> None:
         else:
             raw_data_path = unknown_data_path
             conversion_progress.progress = "making known"
-        
+
         try:
             decode.make_known(str(raw_data_path.resolve()), str(csv_path.resolve()))
         except Exception as exec:
@@ -159,13 +165,17 @@ def convert_file(file: FileStorage) -> None:
             )
         except Exception as exec:
             raise
-            conversion_progress.exception = exec
-            return
         else:
             conversion_progress.progress = "uploading to influx"
 
         try:
-            write_to_influxDB.write_to_influxDB(str(line_path.resolve()))
+            if is_debug:
+                app.logger.info(
+                    f"Thread {current_thread_name}: Skipping InfluxDB upload (Debug Mode)."
+                )
+            else:
+                write_to_influxDB.write_to_influxDB(str(line_path.resolve()))
+
         except Exception as exec:
             conversion_progress.exception = exec
             return
@@ -178,7 +188,8 @@ def convert_file(file: FileStorage) -> None:
             conversion_progress.exception = exec
             return
         else:
-            conversion_progress.progress = 100
+            conversion_progress.progress = "done"
+            conversion_progress.finished = True
 
 
 @app.route("/files")
@@ -196,8 +207,10 @@ def list_files():
                 files.append(
                     {
                         "name": path.name,
-                            "timestamp": datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
-                        }
+                        "timestamp": datetime.fromtimestamp(
+                            path.stat().st_mtime
+                        ).strftime("%Y-%m-%d %H:%M:%S"),
+                    }
                 )
         files.sort(key=lambda f: f["timestamp"], reverse=True)
         return jsonify(files)

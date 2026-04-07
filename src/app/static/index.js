@@ -44,6 +44,9 @@ function handleFiles(files) {
     formData.append(file.name, file);
   }
 
+  const debugMode = document.getElementById("debugToggle").checked;
+  formData.append("debug", debugMode);
+
   // Clear previous alerts
   alertContainer.innerHTML = "";
 
@@ -113,7 +116,7 @@ function startPolling(taskName) {
 
       updateProgressDisplay(progress);
 
-      if (progress >= 100) {
+      if (response.status == 200) {
         clearInterval(pollIntervalId);
         pollIntervalId = null;
         showAlert("Upload and processing complete!", "success");
