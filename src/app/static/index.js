@@ -148,6 +148,22 @@ function showAlert(message, type) {
   `;
 }
 
+function formatSize(bytes) {
+  if (bytes === 0) {
+    return "0 B";
+  }
+
+  const unitSize = 1024;
+  const units = ["B", "KB", "MB", "GB"];
+  const unitIndex = Math.floor(Math.log(bytes) / Math.log(unitSize));
+
+  return (
+    parseFloat((bytes / Math.pow(unitSize, unitIndex)).toFixed(2)) +
+    " " +
+    units[unitIndex]
+  );
+}
+
 async function loadFiles(type) {
   const list = document.getElementById(`${type}fileList`);
   list.innerHTML = "";
@@ -176,7 +192,7 @@ async function loadFiles(type) {
       nameSpan.title = file.name;
 
       const timeSpan = document.createElement("small");
-      timeSpan.textContent = file.timestamp;
+      timeSpan.textContent = `${file.timestamp} • ${formatSize(file.size)}`;
       timeSpan.className = "text-muted";
 
       leftDiv.appendChild(nameSpan);
