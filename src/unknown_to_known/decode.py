@@ -6,7 +6,7 @@ from pathlib import Path
 
 from constants import *
 
-from filter_gps import filter_gps
+from .filter_gps import filter_gps
 
 """
 @author Magnus Van Zyl
