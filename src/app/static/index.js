@@ -173,6 +173,7 @@ async function loadFiles(type) {
       nameSpan.textContent = file.name;
       nameSpan.className = "me-2 text-truncate";
       nameSpan.style.maxWidth = "240px";
+      nameSpan.title = file.name;
 
       const timeSpan = document.createElement("small");
       timeSpan.textContent = file.timestamp;
@@ -199,6 +200,7 @@ async function loadFiles(type) {
 async function loadAllFiles() {
   loadFiles("csv");
   loadFiles("rerun");
+  loadFiles("raw");
 }
 
 loadAllFiles();

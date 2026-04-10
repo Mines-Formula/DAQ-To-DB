@@ -31,6 +31,10 @@ LINE_FILENAME = "{}.line"
 app = Flask(__name__)
 app.config["tasks"] = LimitedDict(max_size=20)
 
+CSV_DIR.mkdir(parents=True, exist_ok=True)
+RERUN_DIR.mkdir(parents=True, exist_ok=True)
+RAW_DIR.mkdir(parents=True, exist_ok=True)
+
 
 @app.route("/")
 def home():
@@ -132,8 +136,9 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
 
     with tempfile.TemporaryDirectory() as temporary_directory:
         parent_path = Path(temporary_directory)
-        raw_data_path = parent_path / raw_data_filename
         unknown_data_path = parent_path / unknown_data_filename
+
+        raw_data_path = RAW_DIR / raw_data_filename
         csv_path = CSV_DIR / csv_filename
         line_path = CSV_DIR / line_filename
 
@@ -194,28 +199,34 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
 
 @app.route("/files")
 def list_files():
+    TYPE_TO_DIR = {
+        "csv": CSV_DIR,
+        "rerun": RERUN_DIR,
+        "raw": RAW_DIR,
+    }
+
     type_ = request.args.get("type", "").casefold()
 
-    if type_ not in ("csv", "rerun"):
+    try:
+        dir = TYPE_TO_DIR[type_]
+    except KeyError:
         return "Invalid type!", 400
 
-    try:
-        dir = CSV_DIR if type_ == "csv" else RERUN_DIR
-        files = []
-        for path in dir.iterdir():
-            if path.is_file():
-                files.append(
-                    {
-                        "name": path.name,
-                        "timestamp": datetime.fromtimestamp(
-                            path.stat().st_mtime
-                        ).strftime("%Y-%m-%d %H:%M:%S"),
-                    }
-                )
-        files.sort(key=lambda f: f["timestamp"], reverse=True)
-        return jsonify(files)
-    except FileNotFoundError:
-        return jsonify([]), 200
+    files = []
+
+    for path in dir.iterdir():
+        if path.is_file():
+            files.append(
+                {
+                    "name": path.name,
+                    "timestamp": datetime.fromtimestamp(path.stat().st_mtime).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+                }
+            )
+    files.sort(key=lambda f: f["timestamp"], reverse=True)
+
+    return jsonify(files)
 
 
 @app.route("/files/download/<path:filename>")
