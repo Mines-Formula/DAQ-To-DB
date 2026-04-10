@@ -142,7 +142,7 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
 
         raw_data_path = RAW_DIR / raw_data_filename
         csv_path = CSV_DIR / csv_filename
-        line_path = CSV_DIR / line_filename
+        line_path = parent_path / line_filename
 
         file.save(raw_data_path)
         conversion_progress.progress = "deserialize"
