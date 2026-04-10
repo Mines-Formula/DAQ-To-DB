@@ -31,6 +31,10 @@ LINE_FILENAME = "{}.line"
 app = Flask(__name__)
 app.config["tasks"] = LimitedDict(max_size=20)
 
+CSV_DIR.mkdir(parents=True, exist_ok=True)
+RERUN_DIR.mkdir(parents=True, exist_ok=True)
+RAW_DIR.mkdir(parents=True, exist_ok=True)
+
 
 @app.route("/")
 def home():
@@ -122,20 +126,23 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
     :param: file The file to convert."""
     assert file.name
 
-    csv_filename = CSV_FILENAME.format(file.name)
-    raw_data_filename = DATA_FILENAME.format("raw_" + file.name)
-    unknown_data_filename = DATA_FILENAME.format("unknown_" + file.name)
-    line_filename = LINE_FILENAME.format(file.name)
+    base_name = Path(file.name).stem
+
+    csv_filename = CSV_FILENAME.format(base_name)
+    raw_data_filename = DATA_FILENAME.format("raw_" + base_name)
+    unknown_data_filename = DATA_FILENAME.format("unknown_" + base_name)
+    line_filename = LINE_FILENAME.format(base_name)
 
     current_thread_name = threading.current_thread().name
     conversion_progress: ConversionProgress = app.config["tasks"][current_thread_name]
 
     with tempfile.TemporaryDirectory() as temporary_directory:
         parent_path = Path(temporary_directory)
-        raw_data_path = parent_path / raw_data_filename
         unknown_data_path = parent_path / unknown_data_filename
+
+        raw_data_path = RAW_DIR / raw_data_filename
         csv_path = CSV_DIR / csv_filename
-        line_path = CSV_DIR / line_filename
+        line_path = parent_path / line_filename
 
         file.save(raw_data_path)
         conversion_progress.progress = "deserialize"
@@ -194,28 +201,34 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
 
 @app.route("/files")
 def list_files():
+    TYPE_TO_DIR = {
+        "csv": CSV_DIR,
+        "rerun": RERUN_DIR,
+        "raw": RAW_DIR,
+    }
+
     type_ = request.args.get("type", "").casefold()
 
-    if type_ not in ("csv", "rerun"):
+    try:
+        dir = TYPE_TO_DIR[type_]
+    except KeyError:
         return "Invalid type!", 400
 
-    try:
-        dir = CSV_DIR if type_ == "csv" else RERUN_DIR
-        files = []
-        for path in dir.iterdir():
-            if path.is_file():
-                files.append(
-                    {
-                        "name": path.name,
-                        "timestamp": datetime.fromtimestamp(
-                            path.stat().st_mtime
-                        ).strftime("%Y-%m-%d %H:%M:%S"),
-                    }
-                )
-        files.sort(key=lambda f: f["timestamp"], reverse=True)
-        return jsonify(files)
-    except FileNotFoundError:
-        return jsonify([]), 200
+    files = []
+
+    for path in dir.iterdir():
+        if path.is_file():
+            files.append(
+                {
+                    "name": path.name,
+                    "timestamp": datetime.fromtimestamp(path.stat().st_mtime).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+                }
+            )
+    files.sort(key=lambda f: f["timestamp"], reverse=True)
+
+    return jsonify(files)
 
 
 @app.route("/files/download/<path:filename>")
