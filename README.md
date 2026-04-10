@@ -10,7 +10,7 @@ The pipeline transforms raw telemetry data through the following stages:
 
 ```
 Raw Data Files        CSV Files       InfluxDB Format   Database Storage
-    (.data)    →      (.csv)      →      (.line)       →   InfluxDB
+    (.data)    →      (.csv)      →      (.line)       →   InfluxDB 
                         ↓
                     Rerun Format
                 (.rrd for replay)
@@ -62,7 +62,7 @@ This starts the Flask web server on port `6767`.
 
 ### CAN Database Files (.dbc)
 
-This file is the 'map' used to convert unknown to known
+This file is the 'map' used to convert from unknown to known
 - Uses git submodule of DBCFiles from the Github
 - Automatically updated on server through `watch_submodule.sh` script 
 - Located in `data/DBCFiles/`
