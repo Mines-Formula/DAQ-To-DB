@@ -224,6 +224,7 @@ def list_files():
                     "timestamp": datetime.fromtimestamp(path.stat().st_mtime).strftime(
                         "%Y-%m-%d %H:%M:%S"
                     ),
+                    "size": path.stat().st_size,
                 }
             )
     files.sort(key=lambda f: f["timestamp"], reverse=True)
