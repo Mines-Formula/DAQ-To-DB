@@ -126,10 +126,12 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
     :param: file The file to convert."""
     assert file.name
 
-    csv_filename = CSV_FILENAME.format(file.name)
-    raw_data_filename = DATA_FILENAME.format("raw_" + file.name)
-    unknown_data_filename = DATA_FILENAME.format("unknown_" + file.name)
-    line_filename = LINE_FILENAME.format(file.name)
+    base_name = Path(file.name).stem
+
+    csv_filename = CSV_FILENAME.format(base_name)
+    raw_data_filename = DATA_FILENAME.format("raw_" + base_name)
+    unknown_data_filename = DATA_FILENAME.format("unknown_" + base_name)
+    line_filename = LINE_FILENAME.format(base_name)
 
     current_thread_name = threading.current_thread().name
     conversion_progress: ConversionProgress = app.config["tasks"][current_thread_name]
