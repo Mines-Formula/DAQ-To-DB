@@ -6,8 +6,9 @@ from collections import OrderedDict
 @dataclass
 class ConversionProgress:
     name: str
-    progress: float = 0
+    progress: str
     exception: Optional[Exception] = None
+    finished: bool = False
 
     def pop_exception(self) -> Exception:
         if self.exception is None:

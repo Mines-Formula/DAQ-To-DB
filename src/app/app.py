@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from flask import Flask, jsonify, render_template, request
 from pathlib import Path
 from datetime import datetime
+
 from known_to_influxdb import line_protocol, write_to_influxDB
 from unknown_to_known import decode
 from csv_to_rerun import csv_to_rerun
@@ -18,6 +19,8 @@ import threading
 from flask import send_from_directory
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from werkzeug.datastructures.file_storage import FileStorage
 
 
@@ -27,6 +30,10 @@ LINE_FILENAME = "{}.line"
 
 app = Flask(__name__)
 app.config["tasks"] = LimitedDict(max_size=20)
+
+CSV_DIR.mkdir(parents=True, exist_ok=True)
+RERUN_DIR.mkdir(parents=True, exist_ok=True)
+RAW_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @app.route("/")
@@ -41,7 +48,7 @@ def get_progress():
     if thread_name is None:
         return jsonify({"message": "No name parameter provided!"}), 400
 
-    progress: ConversionProgress = app.config["tasks"].get(thread_name)
+    progress: ConversionProgress | None = app.config["tasks"].get(thread_name)
     if progress is None:
         return jsonify({"message": "Unknown task name."}), 404
 
@@ -57,7 +64,7 @@ def get_progress():
                 },
             }
         ),
-        200,
+        200 if progress.finished else 202,
     )
 
 
@@ -75,25 +82,28 @@ def upload_data():
     ):
         return jsonify({"error": "Invalid types uploaded."}), 400
 
+    debug_enabled = request.form.get("debug") == "true"
+
     # Read all file contents upfront to avoid closed file errors
     files_data = [(file.filename, file.read()) for file in request.files.values()]
 
     conversion_thread = threading.Thread(
         target=convert_files,
         args=(files_data,),
+        kwargs=dict(is_debug=debug_enabled),
         daemon=True,
         name=urandom(8).hex(),
     )
 
     app.config["tasks"][conversion_thread.name] = ConversionProgress(
-        name=conversion_thread.name
+        name=conversion_thread.name, progress="starting"
     )
     conversion_thread.start()
 
     return jsonify({"name": conversion_thread.name})
 
 
-def convert_files(files):
+def convert_files(files, **kwargs: Any):
     for filename, content in files:
         # Create a temporary FileStorage-like object for conversion
         from io import BytesIO
@@ -103,10 +113,10 @@ def convert_files(files):
             stream=BytesIO(content), name=filename, filename=filename
         )
 
-        convert_file(file_like)
+        convert_file(file_like, **kwargs)
 
 
-def convert_file(file: FileStorage) -> None:
+def convert_file(file: FileStorage, is_debug: bool) -> None:
     """
     Converts .data following this flow:
         .data (raw) -> .data (unknown) -> .csv (known) -> .line (known)
@@ -116,20 +126,23 @@ def convert_file(file: FileStorage) -> None:
     :param: file The file to convert."""
     assert file.name
 
-    csv_filename = CSV_FILENAME.format(file.name)
-    raw_data_filename = DATA_FILENAME.format("raw_" + file.name)
-    unknown_data_filename = DATA_FILENAME.format("unknown_" + file.name)
-    line_filename = LINE_FILENAME.format(file.name)
+    base_name = Path(file.name).stem
+
+    csv_filename = CSV_FILENAME.format(base_name)
+    raw_data_filename = DATA_FILENAME.format("raw_" + base_name)
+    unknown_data_filename = DATA_FILENAME.format("unknown_" + base_name)
+    line_filename = LINE_FILENAME.format(base_name)
 
     current_thread_name = threading.current_thread().name
     conversion_progress: ConversionProgress = app.config["tasks"][current_thread_name]
 
     with tempfile.TemporaryDirectory() as temporary_directory:
         parent_path = Path(temporary_directory)
-        raw_data_path = parent_path / raw_data_filename
         unknown_data_path = parent_path / unknown_data_filename
+
+        raw_data_path = RAW_DIR / raw_data_filename
         csv_path = CSV_DIR / csv_filename
-        line_path = CSV_DIR / line_filename
+        line_path = parent_path / line_filename
 
         file.save(raw_data_path)
         conversion_progress.progress = "deserialize"
@@ -143,7 +156,7 @@ def convert_file(file: FileStorage) -> None:
         else:
             raw_data_path = unknown_data_path
             conversion_progress.progress = "making known"
-        
+
         try:
             decode.make_known(str(raw_data_path.resolve()), str(csv_path.resolve()))
         except Exception as exec:
@@ -159,13 +172,17 @@ def convert_file(file: FileStorage) -> None:
             )
         except Exception as exec:
             raise
-            conversion_progress.exception = exec
-            return
         else:
             conversion_progress.progress = "uploading to influx"
 
         try:
-            write_to_influxDB.write_to_influxDB(str(line_path.resolve()))
+            if is_debug:
+                app.logger.info(
+                    f"Thread {current_thread_name}: Skipping InfluxDB upload (Debug Mode)."
+                )
+            else:
+                write_to_influxDB.write_to_influxDB(str(line_path.resolve()))
+
         except Exception as exec:
             conversion_progress.exception = exec
             return
@@ -178,31 +195,41 @@ def convert_file(file: FileStorage) -> None:
             conversion_progress.exception = exec
             return
         else:
-            conversion_progress.progress = 100
+            conversion_progress.progress = "done"
+            conversion_progress.finished = True
 
 
 @app.route("/files")
 def list_files():
+    TYPE_TO_DIR = {
+        "csv": CSV_DIR,
+        "rerun": RERUN_DIR,
+        "raw": RAW_DIR,
+    }
+
     type_ = request.args.get("type", "").casefold()
 
-    if type_ not in ("csv", "rerun"):
+    try:
+        dir = TYPE_TO_DIR[type_]
+    except KeyError:
         return "Invalid type!", 400
 
-    try:
-        dir = CSV_DIR if type_ == "csv" else RERUN_DIR
-        files = []
-        for path in dir.iterdir():
-            if path.is_file():
-                files.append(
-                    {
-                        "name": path.name,
-                            "timestamp": datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
-                        }
-                )
-        files.sort(key=lambda f: f["timestamp"], reverse=True)
-        return jsonify(files)
-    except FileNotFoundError:
-        return jsonify([]), 200
+    files = []
+
+    for path in dir.iterdir():
+        if path.is_file():
+            files.append(
+                {
+                    "name": path.name,
+                    "timestamp": datetime.fromtimestamp(path.stat().st_mtime).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+                    "size": path.stat().st_size,
+                }
+            )
+    files.sort(key=lambda f: f["timestamp"], reverse=True)
+
+    return jsonify(files)
 
 
 @app.route("/files/download/<path:filename>")
