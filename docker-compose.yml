@@ -3,6 +3,7 @@ services:
     build:
       context: ./src
     stop_signal: SIGINT
+    restart: unless-stopped
     ports:
       - "6767:6767" 
     volumes:
