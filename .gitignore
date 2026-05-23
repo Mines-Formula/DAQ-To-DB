@@ -21,3 +21,6 @@ build/
 *.log
 *.line
 *.rrd
+
+# Bro I lowkey hate python somtimes - will
+.venv
