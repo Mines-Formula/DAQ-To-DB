@@ -16,9 +16,9 @@ import pytest
 from playwright.sync_api import Page, expect
 
 
-# ---------------------------------------------------------------------------
-# Shared mock payloads
-# ---------------------------------------------------------------------------
+'''
+Shared mock payloads
+'''
 
 _EMPTY = json.dumps([])
 
@@ -45,9 +45,9 @@ _PROGRESS_EXCEPTION = json.dumps({
 })
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+'''
+Helpers
+'''
 
 def _mock_files_empty(route):
     route.fulfill(status=200, content_type="application/json", body=_EMPTY)
@@ -55,122 +55,103 @@ def _mock_files_empty(route):
 
 def _goto(page: Page, url: str) -> None:
     """Navigate and wait for JS-driven initial file-list fetches to settle."""
-    page.goto(url, wait_until="networkidle")
+    page.goto(url)
 
 
-def _setup(page: Page, url: str) -> None:
+@pytest.fixture
+def setup_empty_files_page(page: Page, server_url) -> None:
     """Mock all /files endpoints to return empty lists, then navigate."""
     page.route("**/files**", _mock_files_empty)
-    _goto(page, url)
+    _goto(page, server_url)
 
 
-# ---------------------------------------------------------------------------
-# Page structure
-# ---------------------------------------------------------------------------
+'''
+Page structure
+'''
 
+@pytest.mark.usefixtures("setup_empty_files_page")
 class TestPageStructure:
     def test_title(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page).to_have_title("The Pipeline")
 
     def test_navbar_brand_text(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator(".navbar-brand span")).to_contain_text("The Pipeline")
 
     def test_navbar_wiki_link(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("a.nav-link", has_text="The Wiki")).to_be_visible()
 
     def test_navbar_grafana_link(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("a.nav-link", has_text="Grafana")).to_be_visible()
 
     def test_navbar_rerun_viewer_link(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("a.nav-link", has_text="Rerun Viewer")).to_be_visible()
 
     def test_navbar_feature_request_link(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("a.nav-link", has_text="Feature Request")).to_be_visible()
 
     def test_dropzone_visible(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("#dropZone")).to_be_visible()
 
     def test_dropzone_drag_prompt(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("#dropZone")).to_contain_text("Drag Data Here")
 
     def test_dropzone_click_hint(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("#dropZone")).to_contain_text("click to upload")
 
     def test_file_input_accepts_data_extension(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("#fileInput")).to_have_attribute("accept", ".data")
 
     def test_file_input_allows_multiple(self, page: Page, server_url):
-        _setup(page, server_url)
         # `multiple` attribute present means the element accepts multiple files
         input_el = page.locator("#fileInput")
         assert input_el.get_attribute("multiple") is not None
 
     def test_debug_toggle_visible(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("#debugToggle")).to_be_visible()
 
     def test_debug_toggle_label(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("label[for='debugToggle']")).to_contain_text("Debug Mode")
 
     def test_debug_toggle_unchecked_by_default(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("#debugToggle")).not_to_be_checked()
 
     def test_csv_file_list_present(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("#csvfileList")).to_be_visible()
 
     def test_rerun_file_list_present(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("#rerunfileList")).to_be_visible()
 
     def test_raw_file_list_present(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("#rawfileList")).to_be_visible()
 
     def test_csv_card_header(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator(".card-header", has_text="CSV Files")).to_be_visible()
 
     def test_rerun_card_header(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator(".card-header", has_text="Rerun Files")).to_be_visible()
 
     def test_raw_card_header(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator(".card-header", has_text="Raw Files")).to_be_visible()
 
     def test_alert_container_starts_empty(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("#alertContainer")).to_be_empty()
 
 
-# ---------------------------------------------------------------------------
-# File lists
-# ---------------------------------------------------------------------------
+'''
+File lists
+'''
 
 class TestFileLists:
+    @pytest.mark.usefixtures("setup_empty_files_page")
     def test_empty_csv_list_message(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("#csvfileList")).to_contain_text("No files found")
 
+    @pytest.mark.usefixtures("setup_empty_files_page")
     def test_empty_rerun_list_message(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("#rerunfileList")).to_contain_text("No files found")
 
+    @pytest.mark.usefixtures("setup_empty_files_page")
     def test_empty_raw_list_message(self, page: Page, server_url):
-        _setup(page, server_url)
         expect(page.locator("#rawfileList")).to_contain_text("No files found")
 
     def test_files_show_names(self, page: Page, server_url):
@@ -266,34 +247,30 @@ class TestFileLists:
         expect(page.locator("#rawfileList")).to_contain_text("Failed to load files")
 
 
-# ---------------------------------------------------------------------------
-# Alert rendering
-# ---------------------------------------------------------------------------
+'''
+Alert rendering
+'''
 
+@pytest.mark.usefixtures("setup_empty_files_page")
 class TestAlerts:
     def test_info_alert(self, page: Page, server_url):
-        _setup(page, server_url)
         page.evaluate("showAlert('Info message', 'info')")
         expect(page.locator("#alertContainer .alert-info")).to_be_visible()
         expect(page.locator("#alertContainer")).to_contain_text("Info message")
 
     def test_success_alert(self, page: Page, server_url):
-        _setup(page, server_url)
         page.evaluate("showAlert('All done!', 'success')")
         expect(page.locator("#alertContainer .alert-success")).to_be_visible()
 
     def test_danger_alert(self, page: Page, server_url):
-        _setup(page, server_url)
         page.evaluate("showAlert('Something broke', 'danger')")
         expect(page.locator("#alertContainer .alert-danger")).to_be_visible()
 
     def test_warning_alert(self, page: Page, server_url):
-        _setup(page, server_url)
         page.evaluate("showAlert('Watch out', 'warning')")
         expect(page.locator("#alertContainer .alert-warning")).to_be_visible()
 
     def test_new_alert_replaces_previous(self, page: Page, server_url):
-        _setup(page, server_url)
         page.evaluate("showAlert('First', 'info')")
         page.evaluate("showAlert('Second', 'success')")
         expect(page.locator("#alertContainer .alert")).to_have_count(1)
@@ -301,18 +278,17 @@ class TestAlerts:
         expect(page.locator("#alertContainer")).not_to_contain_text("First")
 
     def test_alert_has_role_attribute(self, page: Page, server_url):
-        _setup(page, server_url)
         page.evaluate("showAlert('Test', 'info')")
         expect(page.locator("#alertContainer [role='alert']")).to_be_visible()
 
 
-# ---------------------------------------------------------------------------
-# Drag and drop
-# ---------------------------------------------------------------------------
+'''
+Drag and drop
+'''
 
 class TestDragDrop:
+    @pytest.mark.usefixtures("setup_empty_files_page")
     def test_dragover_adds_class(self, page: Page, server_url):
-        _setup(page, server_url)
         page.evaluate("""
             const zone = document.getElementById('dropZone');
             zone.dispatchEvent(new DragEvent('dragover', {bubbles: true, cancelable: true}));
@@ -320,8 +296,8 @@ class TestDragDrop:
         classes = page.locator("#dropZone").get_attribute("class")
         assert "dragover" in classes
 
+    @pytest.mark.usefixtures("setup_empty_files_page")
     def test_dragleave_removes_class(self, page: Page, server_url):
-        _setup(page, server_url)
         page.evaluate("""
             const zone = document.getElementById('dropZone');
             zone.classList.add('dragover');
@@ -330,8 +306,8 @@ class TestDragDrop:
         classes = page.locator("#dropZone").get_attribute("class")
         assert "dragover" not in classes
 
+    @pytest.mark.usefixtures("setup_empty_files_page")
     def test_dragover_removes_invalid_class(self, page: Page, server_url):
-        _setup(page, server_url)
         page.evaluate("""
             const zone = document.getElementById('dropZone');
             zone.classList.add('invalid');
@@ -340,8 +316,8 @@ class TestDragDrop:
         classes = page.locator("#dropZone").get_attribute("class")
         assert "invalid" not in classes
 
+    @pytest.mark.usefixtures("setup_empty_files_page")
     def test_dragleave_removes_invalid_class(self, page: Page, server_url):
-        _setup(page, server_url)
         page.evaluate("""
             const zone = document.getElementById('dropZone');
             zone.classList.add('invalid');
@@ -350,8 +326,8 @@ class TestDragDrop:
         classes = page.locator("#dropZone").get_attribute("class")
         assert "invalid" not in classes
 
+    @pytest.mark.usefixtures("setup_empty_files_page")
     def test_drop_empty_transfer_shows_warning(self, page: Page, server_url):
-        _setup(page, server_url)
         page.evaluate("""
             const zone = document.getElementById('dropZone');
             zone.dispatchEvent(new DragEvent('drop', {
@@ -384,16 +360,22 @@ class TestDragDrop:
         classes = page.locator("#dropZone").get_attribute("class")
         assert "dragover" not in classes
 
+    @pytest.mark.usefixtures("setup_empty_files_page")
     def test_dropzone_click_opens_file_chooser(self, page: Page, server_url):
-        _setup(page, server_url)
         with page.expect_file_chooser() as fc_info:
             page.locator("#dropZone").click()
         assert fc_info.value is not None
 
 
-# ---------------------------------------------------------------------------
-# Upload and progress polling
-# ---------------------------------------------------------------------------
+'''
+Upload and progress polling
+'''
+
+def _write_upload_file(page: Page, tmp_path) -> None:
+    f = tmp_path / "run.data"
+    f.write_bytes(b"\x00" * 64)
+    page.locator("#fileInput").set_input_files(str(f))
+
 
 class TestUpload:
     def test_shows_uploading_alert(self, page: Page, server_url, tmp_path):
@@ -406,9 +388,7 @@ class TestUpload:
         ))
         _goto(page, server_url)
 
-        f = tmp_path / "run.data"
-        f.write_bytes(b"\x00" * 64)
-        page.locator("#fileInput").set_input_files(str(f))
+        _write_upload_file(page, tmp_path)
 
         # "Uploading…" is shown synchronously before fetch resolves
         expect(page.locator("#alertContainer")).to_contain_text("Uploading")
@@ -421,9 +401,7 @@ class TestUpload:
         ))
         _goto(page, server_url)
 
-        f = tmp_path / "run.data"
-        f.write_bytes(b"\x00" * 64)
-        page.locator("#fileInput").set_input_files(str(f))
+        _write_upload_file(page, tmp_path)
 
         expect(page.locator("#alertContainer .alert-danger")).to_be_visible(timeout=5000)
 
@@ -435,9 +413,7 @@ class TestUpload:
         ))
         _goto(page, server_url)
 
-        f = tmp_path / "run.data"
-        f.write_bytes(b"\x00" * 64)
-        page.locator("#fileInput").set_input_files(str(f))
+        _write_upload_file(page, tmp_path)
 
         expect(page.locator("#alertContainer .alert-danger")).to_be_visible(timeout=5000)
         expect(page.locator("#alertContainer")).to_contain_text("Server did not return a task name.")
@@ -452,9 +428,7 @@ class TestUpload:
         ))
         _goto(page, server_url)
 
-        f = tmp_path / "run.data"
-        f.write_bytes(b"\x00" * 64)
-        page.locator("#fileInput").set_input_files(str(f))
+        _write_upload_file(page, tmp_path)
 
         # startPolling calls updateProgressDisplay(0) synchronously before the first poll
         expect(page.locator("#alertContainer")).to_contain_text("Processing: 0", timeout=3000)
@@ -469,9 +443,7 @@ class TestUpload:
         ))
         _goto(page, server_url)
 
-        f = tmp_path / "run.data"
-        f.write_bytes(b"\x00" * 64)
-        page.locator("#fileInput").set_input_files(str(f))
+        _write_upload_file(page, tmp_path)
 
         # Poll fires after POLL_INTERVAL (2 s); allow up to 5 s
         expect(page.locator("#alertContainer .alert-success")).to_be_visible(timeout=5000)
@@ -487,9 +459,7 @@ class TestUpload:
         ))
         _goto(page, server_url)
 
-        f = tmp_path / "run.data"
-        f.write_bytes(b"\x00" * 64)
-        page.locator("#fileInput").set_input_files(str(f))
+        _write_upload_file(page, tmp_path)
 
         expect(page.locator("#alertContainer .alert-danger")).to_be_visible(timeout=5000)
         expect(page.locator("#alertContainer")).to_contain_text("ValueError: bad data")
@@ -505,9 +475,7 @@ class TestUpload:
         ))
         _goto(page, server_url)
 
-        f = tmp_path / "run.data"
-        f.write_bytes(b"\x00" * 64)
-        page.locator("#fileInput").set_input_files(str(f))
+        _write_upload_file(page, tmp_path)
 
         expect(page.locator("#alertContainer .alert-danger")).to_be_visible(timeout=5000)
         # The catch block in startPolling always shows this generic message regardless of the 404
@@ -532,16 +500,14 @@ class TestUpload:
 
         initial_count = reload_count["n"]  # 3 from page load (csv, rerun, raw)
 
-        f = tmp_path / "run.data"
-        f.write_bytes(b"\x00" * 64)
-        page.locator("#fileInput").set_input_files(str(f))
+        _write_upload_file(page, tmp_path)
 
         # Wait for the success alert, which means loadAllFiles() was called
         expect(page.locator("#alertContainer .alert-success")).to_be_visible(timeout=5000)
         assert reload_count["n"] > initial_count
 
+    @pytest.mark.usefixtures("setup_empty_files_page")
     def test_debug_toggle_can_be_checked_and_unchecked(self, page: Page, server_url):
-        _setup(page, server_url)
         toggle = page.locator("#debugToggle")
         toggle.check()
         expect(toggle).to_be_checked()
@@ -560,8 +526,6 @@ class TestUpload:
 
         page.evaluate("showAlert('Old alert', 'warning')")
 
-        f = tmp_path / "run.data"
-        f.write_bytes(b"\x00" * 64)
-        page.locator("#fileInput").set_input_files(str(f))
+        _write_upload_file(page, tmp_path)
 
         expect(page.locator("#alertContainer")).not_to_contain_text("Old alert")

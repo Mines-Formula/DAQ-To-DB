@@ -9,6 +9,7 @@
 
 # Python bytecode and extensions
 __pycache__/
+.pytest_cache/
 
 # Packaging and build artifacts
 .Python

@@ -102,7 +102,7 @@ The test suite covers the core backend modules — no mocks, each test exercises
 
 ```bash
 # From the repo root
-pip install pytest pandas
+pip install -r tests/requirements-frontend.txt
 pytest tests/
 ```
 
