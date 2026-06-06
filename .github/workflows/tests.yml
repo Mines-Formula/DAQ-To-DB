@@ -57,7 +57,7 @@ jobs:
         flake8 src tests --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Pytest Backend
       run: |
-        pytest tests/test_backend.py -v
+        pytest tests/backend/ -v
     - name: Pytest Frontend
       run: |
         pytest tests/frontend/ -v
