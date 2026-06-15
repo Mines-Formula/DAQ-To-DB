@@ -6,11 +6,24 @@ A telemetry data processing pipeline that ingests raw vehicle sensor data, decod
 
 ### Running with Docker
 
+For normal local development, use the canonical Compose file:
+
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 The Flask app starts on port `6767`.
+
+On the `fsaelinux` server, run the base Compose file plus the server override:
+
+```bash
+docker compose \
+  -f docker-compose.yml \
+  -f docker-compose.server.yml \
+  up -d
+```
+
+The server override switches the web service to host networking and clears the inherited `ports` mapping. It preserves the base service definition, including the `./data:/data` bind mount, environment, restart policy, build context, and stop signal. The watcher in `infra/watch_submodule.sh` uses the same two-file Compose command when it redeploys after DBC submodule updates.
 
 ### Usage
 
