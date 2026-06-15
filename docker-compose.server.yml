@@ -1,0 +1,4 @@
+services:
+  web:
+    network_mode: host
+    ports: !reset []
