@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
 
-REPO_DIR="/home/mines_formula/data-to-db"
+REPO_DIR="/srv/formula/ThePipeline"
 SUBMODULE_PATH="data/DBCFiles"
 STATE_FILE="$REPO_DIR/infra/.submodule_head_last_seen"
 LOG_FILE="$REPO_DIR/infra/submodule_watcher.log"
@@ -59,7 +59,10 @@ while true; do
         fi
 
         log "Running docker compose up --build -d"
-        if docker compose -f "$REPO_DIR/docker-compose.yml" up --build -d >> "$LOG_FILE" 2>&1; then
+        if docker compose \
+            -f "$REPO_DIR/docker-compose.yml" \
+            -f "$REPO_DIR/docker-compose.server.yml" \
+            up --build -d >> "$LOG_FILE" 2>&1; then
             log "docker compose completed successfully"
         else
             log "docker compose failed"
