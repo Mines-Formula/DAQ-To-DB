@@ -61,7 +61,6 @@ while true; do
         log "Running docker compose up --build -d"
         if docker compose \
             -f "$REPO_DIR/docker-compose.yml" \
-            -f "$REPO_DIR/docker-compose.server.yml" \
             up --build -d >> "$LOG_FILE" 2>&1; then
             log "docker compose completed successfully"
         else

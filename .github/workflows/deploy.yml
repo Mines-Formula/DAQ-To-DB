@@ -38,7 +38,6 @@ jobs:
           set -euo pipefail
           docker compose \
             -f docker-compose.yml \
-            -f docker-compose.server.yml \
             config --quiet
 
       - name: Build and deploy
@@ -47,7 +46,6 @@ jobs:
           set -euo pipefail
           docker compose \
             -f docker-compose.yml \
-            -f docker-compose.server.yml \
             up --detach --build --remove-orphans
 
       - name: Show deployment status
@@ -56,5 +54,4 @@ jobs:
         run: |
           docker compose \
             -f docker-compose.yml \
-            -f docker-compose.server.yml \
             ps
