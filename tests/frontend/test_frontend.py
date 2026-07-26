@@ -35,12 +35,12 @@ _PROGRESS_DONE = json.dumps({
 })
 
 _PROGRESS_IN_FLIGHT = json.dumps({
-    "progress": "deserialize",
+    "progress": "binary_to_can",
     "exception": {"present": False, "type": "None"},
 })
 
 _PROGRESS_EXCEPTION = json.dumps({
-    "progress": "making known",
+    "progress": "can_to_csv",
     "exception": {"present": True, "type": "ValueError: bad data"},
 })
 

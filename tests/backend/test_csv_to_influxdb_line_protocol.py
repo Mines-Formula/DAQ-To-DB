@@ -1,4 +1,4 @@
-from known_to_influxdb.line_protocol import esc_measure, esc_tag
+from csv_to_influxdb.line_protocol import esc_measure, esc_tag
 
 
 def test_esc_measure_commas():

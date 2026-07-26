@@ -46,10 +46,10 @@ Raw Binary          Intermediate        InfluxDB Format     Database
 | Stage | Module | What it does |
 |---|---|---|
 | 1. Upload | `src/app/` | Flask web UI accepts `.data` files |
-| 2. Deserialize | `src/raw_to_unknown/` | Parses binary packets into raw CAN frames |
-| 3. Decode | `src/unknown_to_known/` | Maps CAN IDs to named sensors via `.dbc` files; filters GPS outliers |
-| 4. Time conversion | `src/known_to_influxdb/` | Converts relative timestamps to Unix ms using embedded Date/Time sensor rows |
-| 5. InfluxDB export | `src/known_to_influxdb/` | Formats data as InfluxDB line protocol |
+| 2. Binary to CAN | `src/binary_to_can/` | Parses binary packets into raw CAN frames |
+| 3. CAN to CSV | `src/can_to_csv/` | Maps CAN IDs to named sensors via `.dbc` files; filters GPS outliers |
+| 4. CSV to InfluxDB time conversion | `src/csv_to_influxdb/` | Converts relative timestamps to Unix ms using embedded Date/Time sensor rows |
+| 5. CSV to InfluxDB export | `src/csv_to_influxdb/` | Formats data as InfluxDB line protocol |
 | 6. Write to DB | `src/influx/` | Pushes line protocol data to InfluxDB |
 | 7. Rerun export | `src/csv_to_rerun/` | Converts CSV to `.rrd` for telemetry replay |
 
@@ -59,9 +59,9 @@ Raw Binary          Intermediate        InfluxDB Format     Database
 thePipeline/
 ├── src/
 │   ├── app/                  # Flask web server (upload UI)
-│   ├── raw_to_unknown/       # Binary deserializer
-│   ├── unknown_to_known/     # CAN decoder + GPS filter
-│   ├── known_to_influxdb/    # Timestamp conversion + line protocol formatter
+│   ├── binary_to_can/        # Binary deserializer
+│   ├── can_to_csv/            # CAN decoder + GPS filter
+│   ├── csv_to_influxdb/       # Timestamp conversion + line protocol formatter
 │   ├── influx/               # InfluxDB writer
 │   ├── csv_to_rerun/         # Rerun SDK exporter
 │   └── constants.py          # Shared paths and config
@@ -74,18 +74,31 @@ thePipeline/
 │   └── conftest.py           # Full test suite
 ├── infra/
 │   └── watch_submodule.sh    # Auto-updates DBCFiles on the server
+├── Lib/
+│   └── ProtobufLib/          # Protocol Buffers source (git submodule)
 └── docker-compose.yml
+```
+
+### Git submodules
+
+This repository uses Git submodules for the CAN database files and the Protocol
+Buffers source. A normal `git clone` does not populate submodules automatically.
+To clone the repository with all submodules initialized, use:
+
+```bash
+git clone --recurse-submodules <repository-url>
+```
+
+If you have already cloned the repository, initialize or update all submodules
+with:
+
+```bash
+git submodule update --init --recursive
 ```
 
 ## CAN Database Files
 
 The `.dbc` files are the key to decoding raw CAN frames — they map numeric CAN IDs and bit offsets to named sensors with units. They live in `data/DBCFiles/` as a git submodule and are kept up to date on the server automatically via `infra/watch_submodule.sh`.
-
-To initialize the submodule locally:
-
-```bash
-git submodule update --init --recursive
-```
 
 ## File Formats
 
@@ -105,10 +118,10 @@ The test suite covers the core backend modules — no mocks, each test exercises
 
 | Module | Tests |
 |---|---|
-| `known_to_influxdb/line_protocol.py` | InfluxDB special-character escaping for measurement names and tags |
-| `known_to_influxdb/convert_unix_time.py` | Timestamp parsing, date/time reference building, Unix ms conversion |
-| `unknown_to_known/filter_gps.py` | GPS bounds filtering (removes readings outside continental North America) |
-| `raw_to_unknown/deserializer.py` | Binary packet parsing for CAN frames and string entries |
+| `csv_to_influxdb/line_protocol.py` | InfluxDB special-character escaping for measurement names and tags |
+| `csv_to_influxdb/convert_unix_time.py` | Timestamp parsing, date/time reference building, Unix ms conversion |
+| `can_to_csv/filter_gps.py` | GPS bounds filtering (removes readings outside continental North America) |
+| `binary_to_can/deserializer.py` | Binary packet parsing for CAN frames and string entries |
 | `csv_to_rerun/csv_to_rerun.py` | GPS availability detection for Rerun export |
 
 **Run the tests:**

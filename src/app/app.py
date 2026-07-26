@@ -7,10 +7,10 @@ from flask import Flask, jsonify, render_template, request
 from pathlib import Path
 from datetime import datetime
 
-from known_to_influxdb import line_protocol, write_to_influxDB
-from unknown_to_known import decode
+from csv_to_influxdb import line_protocol, write_to_influxDB
+from can_to_csv import decode
 from csv_to_rerun import csv_to_rerun
-from raw_to_unknown import deserializer
+from binary_to_can import deserializer
 from constants import *
 from os import urandom
 from .models import ConversionProgress, LimitedDict
@@ -145,7 +145,7 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
         line_path = parent_path / line_filename
 
         file.save(raw_data_path)
-        conversion_progress.progress = "deserialize"
+        conversion_progress.progress = "binary_to_can"
 
         try:
             deserializer.deserialize(
@@ -155,7 +155,7 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
             pass
         else:
             raw_data_path = unknown_data_path
-            conversion_progress.progress = "making known"
+            conversion_progress.progress = "can_to_csv"
 
         try:
             decode.make_known(str(raw_data_path.resolve()), str(csv_path.resolve()))
@@ -163,7 +163,7 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
             conversion_progress.exception = exec
             return
         else:
-            conversion_progress.progress = "line protocol "
+            conversion_progress.progress = "csv_to_influxdb"
 
         try:
             line_protocol.convert_to_lineprotocol(
