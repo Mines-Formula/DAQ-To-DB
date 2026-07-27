@@ -31,5 +31,5 @@ def filter_gps(file_name: str):
     filtered_df = pd.concat([non_gps, latitude, longitude], ignore_index=False)
     filtered_df = filtered_df.sort_index().reset_index(drop=True)
 
-    filtered_df.to_csv(file_name)
+    filtered_df.to_csv(file_name, index=False)
     return

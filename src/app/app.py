@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import tempfile
+import json
+import time
 from typing import TYPE_CHECKING
 
 from flask import Flask, jsonify, render_template, request
@@ -8,9 +10,8 @@ from pathlib import Path
 from datetime import datetime
 
 from csv_to_influxdb import line_protocol, write_to_influxDB
-from can_to_csv import decode
 from csv_to_rerun import csv_to_rerun
-from binary_to_can import deserializer
+from telemetry_input import InputConfig, InputFormat, decode_to_csv
 from constants import *
 from os import urandom
 from .models import ConversionProgress, LimitedDict
@@ -62,6 +63,7 @@ def get_progress():
                     "present": exception_present,
                     "type": str(progress.exception),
                 },
+                "metrics": progress.metrics,
             }
         ),
         200 if progress.finished else 202,
@@ -69,7 +71,7 @@ def get_progress():
 
 
 def allowed_file(filename: str) -> bool:
-    return filename.lower().endswith(".data")
+    return filename.lower().endswith((".data", ".bin", ".pb", ".protobuf"))
 
 
 @app.post("/upload")
@@ -83,6 +85,11 @@ def upload_data():
         return jsonify({"error": "Invalid types uploaded."}), 400
 
     debug_enabled = request.form.get("debug") == "true"
+    try:
+        input_config = _input_config_from_form(request.form)
+        input_config.validate()
+    except (ValueError, json.JSONDecodeError) as exc:
+        return jsonify({"error": str(exc)}), 400
 
     # Read all file contents upfront to avoid closed file errors
     files_data = [(file.filename, file.read()) for file in request.files.values()]
@@ -90,7 +97,7 @@ def upload_data():
     conversion_thread = threading.Thread(
         target=convert_files,
         args=(files_data,),
-        kwargs=dict(is_debug=debug_enabled),
+        kwargs=dict(is_debug=debug_enabled, input_config=input_config),
         daemon=True,
         name=urandom(8).hex(),
     )
@@ -116,7 +123,11 @@ def convert_files(files, **kwargs: Any):
         convert_file(file_like, **kwargs)
 
 
-def convert_file(file: FileStorage, is_debug: bool) -> None:
+def convert_file(
+    file: FileStorage,
+    is_debug: bool,
+    input_config: InputConfig | None = None,
+) -> None:
     """
     Converts .data following this flow:
         .data (raw) -> .data (unknown) -> .csv (known) -> .line (known)
@@ -130,7 +141,6 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
 
     csv_filename = CSV_FILENAME.format(base_name)
     raw_data_filename = DATA_FILENAME.format("raw_" + base_name)
-    unknown_data_filename = DATA_FILENAME.format("unknown_" + base_name)
     line_filename = LINE_FILENAME.format(base_name)
 
     current_thread_name = threading.current_thread().name
@@ -138,31 +148,36 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
 
     with tempfile.TemporaryDirectory() as temporary_directory:
         parent_path = Path(temporary_directory)
-        unknown_data_path = parent_path / unknown_data_filename
-
         raw_data_path = RAW_DIR / raw_data_filename
         csv_path = CSV_DIR / csv_filename
         line_path = parent_path / line_filename
 
         file.save(raw_data_path)
-        conversion_progress.progress = "binary_to_can"
-
+        conversion_progress.progress = "decoding input"
+        decode_started = time.perf_counter()
         try:
-            deserializer.deserialize(
-                str(raw_data_path.resolve()), str(unknown_data_path.resolve())
+            resolved_input_config = input_config or InputConfig(
+                input_format=InputFormat.AUTO
             )
-        except Exception as _:
-            pass
-        else:
-            raw_data_path = unknown_data_path
-            conversion_progress.progress = "can_to_csv"
-
-        try:
-            decode.make_known(str(raw_data_path.resolve()), str(csv_path.resolve()))
+            record_count = decode_to_csv(
+                raw_data_path.resolve(),
+                csv_path.resolve(),
+                resolved_input_config,
+            )
         except Exception as exec:
             conversion_progress.exception = exec
+            conversion_progress.finished = True
             return
         else:
+            conversion_progress.metrics.update(
+                {
+                    "records_processed": record_count,
+                    "records_skipped": resolved_input_config.runtime_metrics[
+                        "records_skipped"
+                    ],
+                    "decode_seconds": round(time.perf_counter() - decode_started, 6),
+                }
+            )
             conversion_progress.progress = "csv_to_influxdb"
 
         try:
@@ -171,7 +186,9 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
                 str(line_path.resolve()),
             )
         except Exception as exec:
-            raise
+            conversion_progress.exception = exec
+            conversion_progress.finished = True
+            return
         else:
             conversion_progress.progress = "uploading to influx"
 
@@ -185,6 +202,7 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
 
         except Exception as exec:
             conversion_progress.exception = exec
+            conversion_progress.finished = True
             return
         else:
             conversion_progress.progress = "creating rerun file"
@@ -193,10 +211,45 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
             csv_to_rerun.convert(csv_path.resolve(), RERUN_DIR)
         except Exception as exec:
             conversion_progress.exception = exec
+            conversion_progress.finished = True
             return
         else:
             conversion_progress.progress = "done"
             conversion_progress.finished = True
+
+
+def _input_config_from_form(form) -> InputConfig:
+    input_format = form.get("input_format", InputFormat.AUTO.value)
+    include_paths = tuple(
+        item.strip()
+        for item in form.get("include_paths", "").split(",")
+        if item.strip()
+    )
+    field_mapping = None
+    if form.get("field_mapping"):
+        field_mapping = json.loads(form["field_mapping"])
+        if not isinstance(field_mapping, dict):
+            raise ValueError("field_mapping must be a JSON object")
+    options = {
+        "input_format": input_format,
+        "schema": form.get("schema") or None,
+        "generated_module": form.get("generated_module") or None,
+        "message_type": form.get("message_type") or None,
+        "include_paths": include_paths,
+        "protobuf_output_mode": form.get("protobuf_output_mode", "raw_can"),
+        "length_prefix_encoding": form.get("length_prefix_encoding", "varint"),
+        "byte_order": form.get("byte_order", "big"),
+        "error_policy": form.get("error_policy", "fail_fast"),
+        "maximum_message_size": int(
+            form.get("maximum_message_size", 64 * 1024 * 1024)
+        ),
+        "maximum_nesting_depth": int(form.get("maximum_nesting_depth", 100)),
+        "preserve_unknown_fields": form.get("preserve_unknown_fields", "true")
+        != "false",
+    }
+    if field_mapping is not None:
+        options["field_mapping"] = field_mapping
+    return InputConfig(**options)
 
 
 @app.route("/files")
