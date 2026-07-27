@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import io
 import importlib
+import importlib.util
+from pathlib import Path
 
 import pytest
 
@@ -179,11 +181,15 @@ def test_generated_python_module_resolution(tmp_path, monkeypatch):
     schemas = _schemas(tmp_path / "schema")
     generated = tmp_path / "generated"
     generated.mkdir()
+    grpc_include = (
+        Path(importlib.util.find_spec("grpc_tools").origin).parent / "_proto"
+    )
     assert (
         protoc.main(
             [
                 "protoc",
                 f"-I{schemas}",
+                f"-I{grpc_include}",
                 f"--python_out={generated}",
                 "common.proto",
                 "telemetry.proto",
