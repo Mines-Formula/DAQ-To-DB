@@ -69,6 +69,40 @@
                 </div>
             </div>
 
+            <div class="card shadow-sm mx-auto mb-3 text-start" style="max-width: 42rem;">
+                <div class="card-body">
+                    <label class="form-label fw-semibold" for="inputFormat">Input format</label>
+                    <select class="form-select" id="inputFormat">
+                        <option value="formula_binary">CAN binary</option>
+                        <option value="protobuf_binary">Protobuf (single message)</option>
+                        <option value="protobuf_delimited">Protobuf (length-delimited)</option>
+                    </select>
+
+                    <div id="protobufOptions" class="mt-3" hidden>
+                        <label class="form-label fw-semibold" for="schemaFileInput">Protobuf schema (.proto)</label>
+                        <input class="form-control" type="file" id="schemaFileInput" accept=".proto" />
+
+                        <label class="form-label fw-semibold mt-3" for="messageType">Message type</label>
+                        <input class="form-control" id="messageType" value="telemetry.TestTelemetry" />
+
+                        <label class="form-label fw-semibold mt-3" for="protobufOutputMode">Output mode</label>
+                        <select class="form-select" id="protobufOutputMode">
+                            <option value="decoded_telemetry">Decoded telemetry fields</option>
+                            <option value="raw_can">CAN frames through DBC decoder</option>
+                        </select>
+
+                        <label class="form-label fw-semibold mt-3" for="lengthPrefixEncoding">Length prefix</label>
+                        <select class="form-select" id="lengthPrefixEncoding">
+                            <option value="varint">Varint</option>
+                            <option value="fixed32">Fixed 32-bit</option>
+                        </select>
+
+                        <label class="form-label fw-semibold mt-3" for="fieldMapping">Field mapping (JSON)</label>
+                        <textarea class="form-control" id="fieldMapping" rows="3">{"timestamp":"timestamp","can_id":"can_id","sensor":"sensor","value":"value","unit":"unit"}</textarea>
+                    </div>
+                </div>
+            </div>
+
             <div id="dropZone" class="drop-zone mx-auto rounded-3 bg-white shadow-sm
                  d-flex flex-column justify-content-center align-items-center
                  text-center p-5 mb-3">
@@ -77,7 +111,7 @@
                     Drag Data Here<br>
                     <small class="text-muted">or click to upload</small>
                 </p>
-                <input type="file" id="fileInput" accept=".data" hidden multiple />
+                <input type="file" id="fileInput" accept=".data,.bin,.pb,.protobuf" hidden multiple />
             </div>
 
             <div id="alertContainer"></div>

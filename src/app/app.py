@@ -74,29 +74,48 @@ def allowed_file(filename: str) -> bool:
     return filename.lower().endswith((".data", ".bin", ".pb", ".protobuf"))
 
 
+def allowed_schema_file(filename: str) -> bool:
+    return filename.lower().endswith(".proto")
+
+
 @app.post("/upload")
 def upload_data():
-    if len(request.files) == 0:
+    telemetry_files = request.files.getlist("files")
+    if not telemetry_files:
+        # Preserve compatibility with the previous frontend, which used each
+        # filename as the multipart field name.
+        telemetry_files = [
+            file
+            for key, file in request.files.items(multi=True)
+            if key != "schema_file"
+        ]
+    schema_file = request.files.get("schema_file")
+
+    if not telemetry_files:
         return jsonify({"error": "No file uploaded"}), 400
 
-    if not any(
-        file.filename and allowed_file(file.filename) for file in request.files.values()
-    ):
+    if not all(file.filename and allowed_file(file.filename) for file in telemetry_files):
         return jsonify({"error": "Invalid types uploaded."}), 400
+
+    if schema_file and schema_file.filename and not allowed_schema_file(schema_file.filename):
+        return jsonify({"error": "Schema files must use the .proto extension."}), 400
 
     debug_enabled = request.form.get("debug") == "true"
     try:
-        input_config = _input_config_from_form(request.form)
+        input_config = _input_config_from_form(request.form, schema_file=schema_file)
         input_config.validate()
     except (ValueError, json.JSONDecodeError) as exc:
         return jsonify({"error": str(exc)}), 400
 
     # Read all file contents upfront to avoid closed file errors
-    files_data = [(file.filename, file.read()) for file in request.files.values()]
+    files_data = [(file.filename, file.read()) for file in telemetry_files]
+    schema_data = None
+    if schema_file and schema_file.filename:
+        schema_data = (schema_file.filename, schema_file.read())
 
     conversion_thread = threading.Thread(
         target=convert_files,
-        args=(files_data,),
+        args=(files_data, schema_data),
         kwargs=dict(is_debug=debug_enabled, input_config=input_config),
         daemon=True,
         name=urandom(8).hex(),
@@ -110,17 +129,27 @@ def upload_data():
     return jsonify({"name": conversion_thread.name})
 
 
-def convert_files(files, **kwargs: Any):
-    for filename, content in files:
-        # Create a temporary FileStorage-like object for conversion
-        from io import BytesIO
-        from werkzeug.datastructures import FileStorage
+def convert_files(files, schema_data=None, **kwargs: Any):
+    # The schema must remain available for the entire worker lifetime. It is
+    # deliberately kept separate from telemetry files so it is never decoded
+    # as a data capture.
+    with tempfile.TemporaryDirectory() as schema_directory:
+        if schema_data:
+            schema_filename, schema_content = schema_data
+            schema_path = Path(schema_directory) / Path(schema_filename).name
+            schema_path.write_bytes(schema_content)
+            kwargs["input_config"].schema = schema_path
 
-        file_like = FileStorage(
-            stream=BytesIO(content), name=filename, filename=filename
-        )
+        for filename, content in files:
+            # Create a temporary FileStorage-like object for conversion
+            from io import BytesIO
+            from werkzeug.datastructures import FileStorage
 
-        convert_file(file_like, **kwargs)
+            file_like = FileStorage(
+                stream=BytesIO(content), name=filename, filename=filename
+            )
+
+            convert_file(file_like, **kwargs)
 
 
 def convert_file(
@@ -218,7 +247,7 @@ def convert_file(
             conversion_progress.finished = True
 
 
-def _input_config_from_form(form) -> InputConfig:
+def _input_config_from_form(form, schema_file=None) -> InputConfig:
     input_format = form.get("input_format", InputFormat.AUTO.value)
     include_paths = tuple(
         item.strip()
@@ -232,7 +261,7 @@ def _input_config_from_form(form) -> InputConfig:
             raise ValueError("field_mapping must be a JSON object")
     options = {
         "input_format": input_format,
-        "schema": form.get("schema") or None,
+        "schema": form.get("schema") or ("uploaded.proto" if schema_file else None),
         "generated_module": form.get("generated_module") or None,
         "message_type": form.get("message_type") or None,
         "include_paths": include_paths,
