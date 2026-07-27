@@ -142,10 +142,10 @@ pytest tests/ -v
 ## Protobuf telemetry
 
 The `telemetry_input` package is the shared streaming input boundary.
-`InputConfig` selects `formula_binary`, `protobuf_binary` (one message), or
-`protobuf_delimited` (multiple messages with varint or fixed32 length
-prefixes). Protobuf configurations require a schema or generated module and a
-fully qualified message type; protobuf is never guessed from arbitrary bytes.
+`InputConfig` supports `formula_binary` and full protobuf capture files using
+`protobuf_delimited` (multiple messages with length prefixes). Protobuf
+configurations require a schema or generated module and a fully qualified
+message type; protobuf is never guessed from arbitrary bytes.
 
 ```python
 from telemetry_input import InputConfig, decode_to_csv
@@ -154,20 +154,13 @@ config = InputConfig(
     input_format="protobuf_delimited",
     schema="schemas/",
     message_type="telemetry.VehicleMessage",
-    protobuf_output_mode="raw_can",
-    field_mapping={
-        "timestamp": "timestamp",
-        "can_id": "frame.can_id",
-        "payload": "frame.payload",
-    },
 )
 decode_to_csv("run.pb", "run.csv", config)
 ```
 
-Use `protobuf_output_mode="raw_can"` to route timestamp, CAN ID, and payload
-through the existing DBC decoder. Use `"decoded_telemetry"` with `timestamp`,
-`sensor`, `value`, and `unit` mappings to bypass DBC and write the same
-five-column CSV contract directly.
+Protobuf capture records are normalized as raw CAN frames and routed through
+the same DBC decoder as Formula binary input. They therefore produce the same
+CSV, InfluxDB, and Rerun outputs as CAN uploads.
 
 For production, generate modules once during the build:
 
@@ -177,12 +170,9 @@ python -m tools.generate_protobuf ../schemas generated \
   --expected-version="libprotoc 31.1"
 ```
 
-The upload API accepts matching form fields: `input_format`, `schema`,
-`generated_module`, `message_type`, `protobuf_output_mode`, `include_paths`,
-`length_prefix_encoding`, `byte_order`, `field_mapping` (JSON),
-`error_policy`, `maximum_message_size`, `maximum_nesting_depth`, and
-`preserve_unknown_fields`. Schema paths refer to trusted server files; a
-schema-upload UI can be added separately.
+The upload UI accepts CAN files or full protobuf capture files. Protobuf
+uploads require a `.proto` schema file and `message_type`; the web workflow
+uses length-delimited varint framing and the raw-CAN output path automatically.
 
 Once a representative vehicle schema and capture are available, measure the
 protobuf portion separately from total CSV conversion:

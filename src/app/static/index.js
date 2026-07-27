@@ -6,19 +6,11 @@ const alertContainer = document.getElementById("alertContainer");
 const inputFormat = document.getElementById("inputFormat");
 const protobufOptions = document.getElementById("protobufOptions");
 const schemaFileInput = document.getElementById("schemaFileInput");
-const protobufOutputMode = document.getElementById("protobufOutputMode");
-const fieldMapping = document.getElementById("fieldMapping");
 
 let pollIntervalId = null;
 
 inputFormat.addEventListener("change", () => {
   protobufOptions.hidden = inputFormat.value === "formula_binary";
-});
-
-protobufOutputMode.addEventListener("change", () => {
-  fieldMapping.value = protobufOutputMode.value === "raw_can"
-    ? '{"timestamp":"timestamp","can_id":"can_id","payload":"payload"}'
-    : '{"timestamp":"timestamp","can_id":"can_id","sensor":"sensor","value":"value","unit":"unit"}';
 });
 
 dropZone.addEventListener("click", () => fileInput.click());
@@ -67,25 +59,8 @@ function handleFiles(files) {
       return;
     }
 
-    let fieldMapping;
-    try {
-      fieldMapping = JSON.parse(document.getElementById("fieldMapping").value);
-    } catch (error) {
-      showAlert("Field mapping must be valid JSON.", "warning");
-      return;
-    }
-
     formData.append("schema_file", schema);
     formData.append("message_type", document.getElementById("messageType").value);
-    formData.append(
-      "protobuf_output_mode",
-      document.getElementById("protobufOutputMode").value,
-    );
-    formData.append(
-      "length_prefix_encoding",
-      document.getElementById("lengthPrefixEncoding").value,
-    );
-    formData.append("field_mapping", JSON.stringify(fieldMapping));
   }
 
   const debugMode = document.getElementById("debugToggle").checked;

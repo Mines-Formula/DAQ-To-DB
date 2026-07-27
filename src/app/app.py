@@ -90,6 +90,19 @@ def upload_data():
             if key != "schema_file"
         ]
     schema_file = request.files.get("schema_file")
+    input_format = request.form.get("input_format", InputFormat.FORMULA_BINARY.value)
+
+    if input_format == InputFormat.PROTOBUF_BINARY.value:
+        return jsonify(
+            {"error": "Single-message protobuf uploads are not supported; upload a full protobuf capture file."}
+        ), 400
+
+    if (
+        input_format == InputFormat.PROTOBUF_DELIMITED.value
+        and not (schema_file and schema_file.filename)
+        and not request.form.get("schema")
+    ):
+        return jsonify({"error": "Protobuf uploads require a .proto schema file."}), 400
 
     if not telemetry_files:
         return jsonify({"error": "No file uploaded"}), 400
@@ -249,35 +262,16 @@ def convert_file(
 
 def _input_config_from_form(form, schema_file=None) -> InputConfig:
     input_format = form.get("input_format", InputFormat.AUTO.value)
-    include_paths = tuple(
-        item.strip()
-        for item in form.get("include_paths", "").split(",")
-        if item.strip()
-    )
-    field_mapping = None
-    if form.get("field_mapping"):
-        field_mapping = json.loads(form["field_mapping"])
-        if not isinstance(field_mapping, dict):
-            raise ValueError("field_mapping must be a JSON object")
     options = {
         "input_format": input_format,
         "schema": form.get("schema") or ("uploaded.proto" if schema_file else None),
         "generated_module": form.get("generated_module") or None,
         "message_type": form.get("message_type") or None,
-        "include_paths": include_paths,
-        "protobuf_output_mode": form.get("protobuf_output_mode", "raw_can"),
-        "length_prefix_encoding": form.get("length_prefix_encoding", "varint"),
-        "byte_order": form.get("byte_order", "big"),
-        "error_policy": form.get("error_policy", "fail_fast"),
-        "maximum_message_size": int(
-            form.get("maximum_message_size", 64 * 1024 * 1024)
-        ),
-        "maximum_nesting_depth": int(form.get("maximum_nesting_depth", 100)),
-        "preserve_unknown_fields": form.get("preserve_unknown_fields", "true")
-        != "false",
+        # Web uploads always use the same raw-CAN normalization as .data files.
+        # The existing DBC decoder then produces the normal CSV and RRD outputs.
+        "protobuf_output_mode": "raw_can",
+        "length_prefix_encoding": "varint",
     }
-    if field_mapping is not None:
-        options["field_mapping"] = field_mapping
     return InputConfig(**options)
 
 
