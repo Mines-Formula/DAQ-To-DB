@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from can_to_csv import decode as can_decode
 from telemetry_input import (
     ErrorPolicy,
     InputConfig,
@@ -203,7 +204,23 @@ def test_generated_python_module_resolution(tmp_path, monkeypatch):
     assert registry.resolve("telemetry.Sensor") is module.Sensor
 
 
-def test_raw_can_protobuf_routes_through_real_dbc(tmp_path):
+def test_raw_can_protobuf_routes_through_dbc(tmp_path, monkeypatch):
+    dbc_dir = tmp_path / "dbc"
+    dbc_dir.mkdir()
+    (dbc_dir / "MF13Beta.dbc").write_text(
+        '''VERSION ""
+
+NS_ :
+
+BS_:
+
+BU_: Vector__XXX
+
+BO_ 1600 Engine: 8 Vector__XXX
+ SG_ EngineSpeed : 0|16@1+ (1,0) [0|65535] "rpm" Vector__XXX
+'''
+    )
+    monkeypatch.setattr(can_decode, "DBC_DIR", dbc_dir)
     registry = _registry(tmp_path / "schema")
     message_class = registry.resolve("telemetry.CanFrame")
     payload = message_class(
