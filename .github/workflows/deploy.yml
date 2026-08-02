@@ -30,7 +30,11 @@ jobs:
           git fetch --prune origin
           git checkout main
           git reset --hard origin/main
-          git submodule update --init --recursive
+
+          # The parent reset does not discard changes inside submodules.
+          # Clean them so stale/generated DBC files cannot prevent checkout.
+          git submodule foreach --recursive 'git reset --hard && git clean -ffd'
+          git submodule update --init --recursive --force
 
       - name: Validate Docker Compose configuration
         working-directory: /srv/formula/ThePipeline
