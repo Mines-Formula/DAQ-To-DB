@@ -24,7 +24,7 @@ docker compose \
 
 > Note: `deploy.yml` automatically composes the server when ran
 
-The Compose file uses host networking for the web service, binds `./data:/data`, and keeps the production environment, restart policy, build context, and stop signal in one place. The watcher in `infra/watch_submodule.sh` uses the same Compose file when it redeploys after DBC submodule updates.
+The Compose file uses host networking for the web service, binds `./data:/data`, and keeps the production environment, restart policy, build context, and stop signal in one place. GitHub Actions updates the pinned DBC submodule and redeploys the Compose service after repository changes.
 
 ### Usage
 
@@ -80,13 +80,7 @@ thePipeline/
 
 ## CAN Database Files
 
-The `.dbc` files are the key to decoding raw CAN frames — they map numeric CAN IDs and bit offsets to named sensors with units. They live in `data/DBCFiles/` as a git submodule and are kept up to date on the server automatically via `infra/watch_submodule.sh`.
-
-To initialize the submodule locally:
-
-```bash
-git submodule update --init --recursive
-```
+The `.dbc` files are the key to decoding raw CAN frames — they map numeric CAN IDs and bit offsets to named sensors with units. They live in `data/DBCFiles/` as a pinned git submodule. Update the submodule commit in this repository when DBC changes are approved; the deployment workflow then checks out that exact commit.
 
 ## File Formats
 
