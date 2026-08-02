@@ -73,8 +73,102 @@ def test_upload_accepts_protobuf_capture_and_schema(upload_app):
     assert config.input_format.value == "protobuf_delimited"
     assert config.message_type == "telemetry.Test"
     assert config.schema is not None
-    assert config.protobuf_output_mode.value == "raw_can"
     assert config.length_prefix_encoding.value == "varint"
+
+
+def test_protobuf_upload_defaults_to_bundled_mf26_v2_schema(upload_app):
+    import app.app as app_module
+
+    client, captured = upload_app
+
+    response = client.post(
+        "/upload",
+        data={
+            "files": (io.BytesIO(b"protobuf bytes"), "capture.pb"),
+            "input_format": "protobuf_delimited",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    _, schema, kwargs = captured[-1]
+    assert schema is None
+    assert kwargs["input_config"].schema == app_module.DEFAULT_SCHEMA_DIR
+    assert kwargs["input_config"].message_type == "MF26.v2.CarFrame"
+
+
+def test_upload_accepts_imported_schema_bundle(upload_app):
+    client, captured = upload_app
+
+    response = client.post(
+        "/upload",
+        data={
+            "files": (io.BytesIO(b"protobuf bytes"), "capture.pb"),
+            "schema_files": [
+                (io.BytesIO(b'import "MF26/v2/daq.proto";'), "MF26/v2/vehicle.proto"),
+                (io.BytesIO(b'message DAQData {}'), "MF26/v2/daq.proto"),
+            ],
+            "input_format": "protobuf_delimited",
+            "message_type": "MF26.v2.CarFrame",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    _, schema, kwargs = captured[-1]
+    assert schema == [
+        ("MF26/v2/vehicle.proto", b'import "MF26/v2/daq.proto";'),
+        ("MF26/v2/daq.proto", b"message DAQData {}"),
+    ]
+
+
+def test_convert_files_strips_folder_wrapper_with_ignored_schema_paths(monkeypatch):
+    import app.app as app_module
+
+    captured = []
+
+    def fake_convert_file(file, **kwargs):
+        schema_root = kwargs["input_config"].schema
+        captured.append(
+            sorted(
+                path.relative_to(schema_root).as_posix()
+                for path in schema_root.rglob("*.proto")
+            )
+        )
+
+    monkeypatch.setattr(app_module, "convert_file", fake_convert_file)
+    config = app_module.InputConfig(
+        input_format="protobuf_delimited",
+        schema="placeholder.proto",
+        message_type="MF26.v2.CarFrame",
+    )
+
+    app_module.convert_files(
+        [("capture.pb", b"capture")],
+        [
+            ("ProtobufFiles/MF26/v2/vehicle.proto", b"vehicle"),
+            ("ProtobufFiles/.venv/vendor.proto", b"vendor"),
+        ],
+        is_debug=True,
+        input_config=config,
+    )
+
+    assert captured == [[".venv/vendor.proto", "MF26/v2/vehicle.proto"]]
+
+
+def test_schema_paths_restore_a_missing_mf26_import_root():
+    import app.app as app_module
+
+    entries = [
+        ("v2/vehicle.proto", b'import "MF26/v2/daq.proto";'),
+        ("v2/daq.proto", b"message DAQData {}"),
+    ]
+    paths = [app_module._safe_schema_path(filename) for filename, _ in entries]
+
+    assert [
+        path.as_posix()
+        for path in app_module._schema_relative_paths(entries, paths)
+    ] == ["MF26/v2/vehicle.proto", "MF26/v2/daq.proto"]
 
 
 def test_upload_rejects_invalid_schema_extension(upload_app):

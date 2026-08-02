@@ -22,18 +22,12 @@ def main() -> int:
         choices=("protobuf_binary", "protobuf_delimited"),
         default="protobuf_delimited",
     )
-    parser.add_argument(
-        "--mode",
-        choices=("raw_can", "decoded_telemetry"),
-        default="raw_can",
-    )
     args = parser.parse_args()
 
     config = InputConfig(
         input_format=args.format,
         schema=args.schema,
         message_type=args.message_type,
-        protobuf_output_mode=args.mode,
     )
     registry = build_registry(config)
 

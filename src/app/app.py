@@ -3,10 +3,12 @@ from __future__ import annotations
 import tempfile
 import json
 import time
+import re
 from typing import TYPE_CHECKING
 
 from flask import Flask, jsonify, render_template, request
 from pathlib import Path
+from pathlib import PurePosixPath
 from datetime import datetime
 
 from csv_to_influxdb import line_protocol, write_to_influxDB
@@ -28,6 +30,8 @@ if TYPE_CHECKING:
 DATA_FILENAME = "{}.data"
 CSV_FILENAME = "{}.csv"
 LINE_FILENAME = "{}.line"
+DEFAULT_SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schemas"
+DEFAULT_MESSAGE_TYPE = "MF26.v2.CarFrame"
 
 app = Flask(__name__)
 app.config["tasks"] = LimitedDict(max_size=20)
@@ -81,15 +85,18 @@ def allowed_schema_file(filename: str) -> bool:
 @app.post("/upload")
 def upload_data():
     telemetry_files = request.files.getlist("files")
+    schema_files = request.files.getlist("schema_files")
+    if not schema_files:
+        uploaded_schema = request.files.get("schema_file")
+        schema_files = [uploaded_schema] if uploaded_schema is not None else []
     if not telemetry_files:
         # Preserve compatibility with the previous frontend, which used each
         # filename as the multipart field name.
         telemetry_files = [
             file
             for key, file in request.files.items(multi=True)
-            if key != "schema_file"
+            if key not in {"schema_file", "schema_files"}
         ]
-    schema_file = request.files.get("schema_file")
     input_format = request.form.get("input_format", InputFormat.FORMULA_BINARY.value)
 
     if input_format == InputFormat.PROTOBUF_BINARY.value:
@@ -99,10 +106,11 @@ def upload_data():
 
     if (
         input_format == InputFormat.PROTOBUF_DELIMITED.value
-        and not (schema_file and schema_file.filename)
+        and not any(file.filename for file in schema_files)
         and not request.form.get("schema")
+        and not DEFAULT_SCHEMA_DIR.is_dir()
     ):
-        return jsonify({"error": "Protobuf uploads require a .proto schema file."}), 400
+        return jsonify({"error": "The default MF26/v2 protobuf schema is unavailable."}), 500
 
     if not telemetry_files:
         return jsonify({"error": "No file uploaded"}), 400
@@ -110,21 +118,37 @@ def upload_data():
     if not all(file.filename and allowed_file(file.filename) for file in telemetry_files):
         return jsonify({"error": "Invalid types uploaded."}), 400
 
-    if schema_file and schema_file.filename and not allowed_schema_file(schema_file.filename):
+    if any(
+        not file.filename or not allowed_schema_file(file.filename)
+        for file in schema_files
+    ):
         return jsonify({"error": "Schema files must use the .proto extension."}), 400
+    try:
+        for file in schema_files:
+            if file.filename:
+                _safe_schema_path(file.filename)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     debug_enabled = request.form.get("debug") == "true"
     try:
-        input_config = _input_config_from_form(request.form, schema_file=schema_file)
+        input_config = _input_config_from_form(
+            request.form,
+            schema_file=schema_files[0] if schema_files else None,
+        )
         input_config.validate()
     except (ValueError, json.JSONDecodeError) as exc:
         return jsonify({"error": str(exc)}), 400
 
     # Read all file contents upfront to avoid closed file errors
     files_data = [(file.filename, file.read()) for file in telemetry_files]
-    schema_data = None
-    if schema_file and schema_file.filename:
-        schema_data = (schema_file.filename, schema_file.read())
+    schema_data = [
+        (file.filename, file.read()) for file in schema_files if file.filename
+    ]
+    if not schema_data:
+        schema_data = None
+    elif len(schema_data) == 1:
+        schema_data = schema_data[0]
 
     conversion_thread = threading.Thread(
         target=convert_files,
@@ -148,10 +172,28 @@ def convert_files(files, schema_data=None, **kwargs: Any):
     # as a data capture.
     with tempfile.TemporaryDirectory() as schema_directory:
         if schema_data:
-            schema_filename, schema_content = schema_data
-            schema_path = Path(schema_directory) / Path(schema_filename).name
-            schema_path.write_bytes(schema_content)
-            kwargs["input_config"].schema = schema_path
+            schema_entries = (
+                [schema_data]
+                if isinstance(schema_data, tuple)
+                else schema_data
+            )
+            raw_paths = [_safe_schema_path(filename) for filename, _ in schema_entries]
+            relative_paths = _schema_relative_paths(schema_entries, raw_paths)
+            schema_paths = []
+            for (schema_filename, schema_content), raw_path in zip(
+                schema_entries, relative_paths
+            ):
+                schema_path = Path(schema_directory) / raw_path
+                schema_path.parent.mkdir(parents=True, exist_ok=True)
+                schema_path.write_bytes(schema_content)
+                schema_paths.append(schema_path)
+            # An uploaded bundle is loaded as a directory, overriding the
+            # bundled default while preserving repository-relative imports.
+            kwargs["input_config"].schema = (
+                Path(schema_directory)
+                if len(schema_paths) > 1
+                else schema_paths[0]
+            )
 
         for filename, content in files:
             # Create a temporary FileStorage-like object for conversion
@@ -163,6 +205,49 @@ def convert_files(files, schema_data=None, **kwargs: Any):
             )
 
             convert_file(file_like, **kwargs)
+
+
+def _safe_schema_path(filename: str) -> Path:
+    """Convert a browser-provided relative filename into a safe local path."""
+    normalized = filename.replace("\\", "/")
+    path = PurePosixPath(normalized)
+    if path.is_absolute() or ".." in path.parts or not path.parts:
+        raise ValueError("invalid schema file path")
+    return Path(*path.parts)
+
+
+def _schema_relative_paths(schema_entries, raw_paths: list[Path]) -> list[Path]:
+    """Preserve schema import paths from browser directory uploads.
+
+    Browser directory pickers usually add the selected directory as a wrapper.
+    A user may also select the ``v2`` directory itself, even though MF26 source
+    files import it as ``MF26/v2/...``. Infer that omitted import-root prefix
+    from imports which name one of the uploaded files.
+    """
+    mf26_positions = [
+        path.parts.index("MF26") for path in raw_paths if "MF26" in path.parts
+    ]
+    strip_prefix = (
+        mf26_positions[0]
+        if mf26_positions and len(set(mf26_positions)) == 1
+        else 0
+    )
+    paths = [Path(*path.parts[strip_prefix:]) for path in raw_paths]
+    uploaded = {path.as_posix() for path in paths}
+    prefixes = set()
+    for _, content in schema_entries:
+        source = content.decode("utf-8", errors="ignore")
+        for imported in re.findall(r'^\s*import(?:\s+(?:public|weak))?\s+"([^"]+)"', source, re.MULTILINE):
+            for relative in uploaded:
+                if imported.endswith("/" + relative):
+                    prefixes.add(imported[: -len(relative)])
+
+    # One consistent prefix identifies the directory that was omitted by the
+    # picker. Never guess when schemas use more than one import root.
+    if len(prefixes) == 1:
+        prefix = Path(prefixes.pop())
+        return [prefix / path for path in paths]
+    return paths
 
 
 def convert_file(
@@ -262,14 +347,23 @@ def convert_file(
 
 def _input_config_from_form(form, schema_file=None) -> InputConfig:
     input_format = form.get("input_format", InputFormat.AUTO.value)
+    is_protobuf = input_format in {
+        InputFormat.PROTOBUF_BINARY.value,
+        InputFormat.PROTOBUF_DELIMITED.value,
+    }
     options = {
         "input_format": input_format,
-        "schema": form.get("schema") or ("uploaded.proto" if schema_file else None),
+        "schema": form.get("schema") or (
+            "uploaded.proto"
+            if schema_file
+            else DEFAULT_SCHEMA_DIR
+            if is_protobuf
+            else None
+        ),
         "generated_module": form.get("generated_module") or None,
-        "message_type": form.get("message_type") or None,
-        # Web uploads always use the same raw-CAN normalization as .data files.
-        # The existing DBC decoder then produces the normal CSV and RRD outputs.
-        "protobuf_output_mode": "raw_can",
+        "message_type": form.get("message_type") or (
+            DEFAULT_MESSAGE_TYPE if is_protobuf else None
+        ),
         "length_prefix_encoding": "varint",
     }
     return InputConfig(**options)

@@ -7,15 +7,14 @@ from pathlib import Path
 
 import pytest
 
-from can_to_csv import decode as can_decode
 from telemetry_input import (
     ErrorPolicy,
     InputConfig,
     InputFormat,
     ProtobufDecodeError,
     ProtobufDecoder,
-    ProtobufOutputMode,
     SchemaRegistry,
+    SchemaResolutionError,
 )
 from telemetry_input.formula import FormulaDecodeError, iter_formula_records
 from telemetry_input.pipeline import decode_to_csv
@@ -78,6 +77,24 @@ def test_schema_directory_imports_and_qualified_resolution(tmp_path):
     assert registry.resolve(".telemetry.Sensor").DESCRIPTOR.full_name == "telemetry.Sensor"
 
 
+def test_schema_directory_ignores_virtual_environment_proto_files(tmp_path):
+    schemas = _schemas(tmp_path / "schema")
+    ignored = schemas / ".venv" / "lib" / "python" / "site-packages" / "vendor.proto"
+    ignored.parent.mkdir(parents=True)
+    ignored.write_text('this is not a schema source; it must not be compiled')
+
+    registry = SchemaRegistry().load_proto_directory(schemas)
+
+    assert registry.resolve("telemetry.CanFrame").DESCRIPTOR.full_name == "telemetry.CanFrame"
+
+
+def test_schema_compile_error_includes_protoc_diagnostic(tmp_path):
+    (tmp_path / "invalid.proto").write_text('syntax = "proto3"; message {')
+
+    with pytest.raises(SchemaResolutionError, match="Expected message name"):
+        SchemaRegistry().load_proto_directory(tmp_path)
+
+
 def test_single_message_preserves_types_and_normalizes_raw_can(tmp_path):
     registry = _registry(tmp_path)
     message_class = registry.resolve("telemetry.CanFrame")
@@ -107,7 +124,6 @@ def test_delimited_stream_offsets_nested_enum_oneof_and_optional(tmp_path):
         input_format="protobuf_delimited",
         schema=tmp_path,
         message_type="telemetry.Sensor",
-        protobuf_output_mode="decoded_telemetry",
     )
     records = list(ProtobufDecoder(registry, config).decode(io.BytesIO(stream)))
     assert [item.value["sensor"] for item in records] == ["Speed", "RPM"]
@@ -169,7 +185,6 @@ def test_decoded_telemetry_writes_common_csv(tmp_path):
         input_format="protobuf_binary",
         schema=tmp_path / "schema",
         message_type="telemetry.Sensor",
-        protobuf_output_mode=ProtobufOutputMode.DECODED_TELEMETRY,
     )
     assert decode_to_csv(io.BytesIO(payload), output, config, registry) == 1
     assert output.read_text().splitlines() == [
@@ -202,41 +217,6 @@ def test_generated_python_module_resolution(tmp_path, monkeypatch):
     module = importlib.import_module("telemetry_pb2")
     registry = SchemaRegistry().load_generated_module(module)
     assert registry.resolve("telemetry.Sensor") is module.Sensor
-
-
-def test_raw_can_protobuf_routes_through_dbc(tmp_path, monkeypatch):
-    dbc_dir = tmp_path / "dbc"
-    dbc_dir.mkdir()
-    (dbc_dir / "MF13Beta.dbc").write_text(
-        '''VERSION ""
-
-NS_ :
-
-BS_:
-
-BU_: Vector__XXX
-
-BO_ 1600 Engine: 8 Vector__XXX
- SG_ EngineSpeed : 0|16@1+ (1,0) [0|65535] "rpm" Vector__XXX
-'''
-    )
-    monkeypatch.setattr(can_decode, "DBC_DIR", dbc_dir)
-    registry = _registry(tmp_path / "schema")
-    message_class = registry.resolve("telemetry.CanFrame")
-    payload = message_class(
-        timestamp=100, can_id=1600, payload=bytes(8)
-    ).SerializeToString()
-    output = tmp_path / "raw.csv"
-    config = InputConfig(
-        input_format="protobuf_binary",
-        schema=tmp_path / "schema",
-        message_type="telemetry.CanFrame",
-        protobuf_output_mode="raw_can",
-    )
-    assert decode_to_csv(io.BytesIO(payload), output, config, registry) == 1
-    text = output.read_text()
-    assert "EngineSpeed" in text
-    assert text.startswith("Timestamp,CANID,Sensor,Value,Unit")
 
 
 def test_formula_adapter_streams_and_rejects_truncation():

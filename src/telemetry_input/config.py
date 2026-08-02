@@ -12,11 +12,6 @@ class InputFormat(str, Enum):
     PROTOBUF_DELIMITED = "protobuf_delimited"
 
 
-class ProtobufOutputMode(str, Enum):
-    RAW_CAN = "raw_can"
-    DECODED_TELEMETRY = "decoded_telemetry"
-
-
 class ErrorPolicy(str, Enum):
     FAIL_FAST = "fail_fast"
     SKIP_MALFORMED = "skip_malformed"
@@ -35,7 +30,6 @@ class InputConfig:
     generated_module: str | None = None
     message_type: str | None = None
     include_paths: tuple[str | Path, ...] = ()
-    protobuf_output_mode: ProtobufOutputMode | str = ProtobufOutputMode.RAW_CAN
     length_prefix_encoding: LengthPrefixEncoding | str = LengthPrefixEncoding.VARINT
     byte_order: str = "big"
     error_policy: ErrorPolicy | str = ErrorPolicy.FAIL_FAST
@@ -58,7 +52,6 @@ class InputConfig:
 
     def __post_init__(self) -> None:
         self.input_format = InputFormat(self.input_format)
-        self.protobuf_output_mode = ProtobufOutputMode(self.protobuf_output_mode)
         self.length_prefix_encoding = LengthPrefixEncoding(self.length_prefix_encoding)
         self.error_policy = ErrorPolicy(self.error_policy)
         self.include_paths = tuple(Path(path) for path in self.include_paths)

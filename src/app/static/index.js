@@ -5,7 +5,7 @@ const fileInput = document.getElementById("fileInput");
 const alertContainer = document.getElementById("alertContainer");
 const inputFormat = document.getElementById("inputFormat");
 const protobufOptions = document.getElementById("protobufOptions");
-const schemaFileInput = document.getElementById("schemaFileInput");
+const schemaInput = document.getElementById("schemaInput");
 
 let pollIntervalId = null;
 
@@ -53,14 +53,18 @@ function handleFiles(files) {
   formData.append("input_format", inputFormat.value);
 
   if (inputFormat.value !== "formula_binary") {
-    const schema = schemaFileInput.files[0];
-    if (!schema) {
-      showAlert("Select a .proto schema before uploading protobuf data.", "warning");
-      return;
+    const schemaFiles = [...schemaInput.files].filter((file) =>
+      file.name.toLowerCase().endsWith(".proto"),
+    );
+    for (const schema of schemaFiles) {
+      // An uploaded bundle overrides the bundled MF26/v2 default. Relative
+      // paths are required for imports such as MF26/v2/ecu.proto.
+      formData.append("schema_files", schema, schema.webkitRelativePath || schema.name);
     }
-
-    formData.append("schema_file", schema);
-    formData.append("message_type", document.getElementById("messageType").value);
+    const messageType = document.getElementById("messageType").value.trim();
+    if (messageType) {
+      formData.append("message_type", messageType);
+    }
   }
 
   const debugMode = document.getElementById("debugToggle").checked;

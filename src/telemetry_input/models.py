@@ -7,7 +7,9 @@ from typing import Any, Mapping
 @dataclass(slots=True)
 class NormalizedTelemetry:
     timestamp: int | float | str | None = None
-    can_id: int | None = None
+    # Raw CAN records use an integer ID. Already-decoded protobuf telemetry
+    # may use a string stream/car identifier as the CSV tag instead.
+    can_id: int | str | None = None
     payload: bytes | None = None
     sensor: str | None = None
     value: Any = None

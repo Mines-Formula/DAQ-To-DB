@@ -99,7 +99,9 @@ class TestPageStructure:
         expect(page.locator("#dropZone")).to_contain_text("click to upload")
 
     def test_file_input_accepts_data_extension(self, page: Page, server_url):
-        expect(page.locator("#fileInput")).to_have_attribute("accept", ".data")
+        expect(page.locator("#fileInput")).to_have_attribute(
+            "accept", ".data,.bin,.pb,.protobuf"
+        )
 
     def test_file_input_allows_multiple(self, page: Page, server_url):
         # `multiple` attribute present means the element accepts multiple files
@@ -114,6 +116,33 @@ class TestPageStructure:
 
     def test_debug_toggle_unchecked_by_default(self, page: Page, server_url):
         expect(page.locator("#debugToggle")).not_to_be_checked()
+
+    def test_debug_toggle_stays_with_its_label(self, page: Page, server_url):
+        toggle = page.locator("#debugToggle")
+        label = page.locator("label[for='debugToggle']")
+        assert toggle.evaluate("element => getComputedStyle(element).position") == "static"
+        assert abs(toggle.bounding_box()["y"] - label.bounding_box()["y"]) < 10
+
+    def test_protobuf_options_scroll_from_the_top(self, page: Page, server_url):
+        page.locator("#inputFormat").select_option("protobuf_delimited")
+        main = page.locator("main")
+        assert main.evaluate("element => getComputedStyle(element).minHeight") == "0px"
+        assert main.evaluate("element => getComputedStyle(element).justifyContent") == "flex-start"
+        expect(page.locator("label[for='schemaInput']")).to_be_in_viewport()
+
+    def test_schema_input_allows_multiple_proto_files(self, page: Page, server_url):
+        schema_input = page.locator("#schemaInput")
+        expect(schema_input).to_have_attribute("accept", ".proto")
+        assert schema_input.get_attribute("multiple") is not None
+        assert schema_input.get_attribute("webkitdirectory") is not None
+        expect(page.locator("#protobufOptions")).to_contain_text("override")
+        expect(page.locator("#protobufOptions")).to_contain_text("MF26/v2")
+        expect(page.locator("#messageType")).to_have_value("MF26.v2.CarFrame")
+
+    def test_protobuf_output_mode_control_is_removed(self, page: Page, server_url):
+        expect(page.locator("#protobufOutputMode")).to_have_count(0)
+        expect(page.locator("text=Output mode")).to_have_count(0)
+        expect(page.locator("text=Raw CAN through DBC")).to_have_count(0)
 
     def test_csv_file_list_present(self, page: Page, server_url):
         expect(page.locator("#csvfileList")).to_be_visible()

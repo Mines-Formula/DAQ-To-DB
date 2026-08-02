@@ -5,7 +5,6 @@ from .config import (
     InputConfig,
     InputFormat,
     LengthPrefixEncoding,
-    ProtobufOutputMode,
 )
 from .models import DecodedRecord, NormalizedTelemetry
 from .pipeline import decode_to_csv, iter_decoded_records
@@ -21,7 +20,6 @@ __all__ = [
     "NormalizedTelemetry",
     "ProtobufDecodeError",
     "ProtobufDecoder",
-    "ProtobufOutputMode",
     "SchemaRegistry",
     "SchemaResolutionError",
     "decode_to_csv",

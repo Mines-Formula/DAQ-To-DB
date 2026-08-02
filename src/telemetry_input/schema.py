@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import importlib
 import importlib.util
+import subprocess
+import sys
 import tempfile
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -51,12 +53,41 @@ class SchemaRegistry:
         directory = Path(path).resolve()
         if not directory.is_dir():
             raise SchemaResolutionError(f"schema directory does not exist: {directory}")
-        protos = sorted(directory.rglob("*.proto"))
+        protos = sorted(self._iter_proto_files(directory))
         if not protos:
             raise SchemaResolutionError(f"schema directory contains no .proto files: {directory}")
         roots = self._include_roots(directory, include_paths)
         self._compile_and_load(protos, roots)
         return self
+
+    @staticmethod
+    def _iter_proto_files(directory: Path) -> Iterable[Path]:
+        """Yield schema sources while ignoring bundled development artifacts.
+
+        A browser directory upload can include a local virtual environment or
+        build checkout. Those trees often contain copies of Google's standard
+        .proto files, which conflict with grpcio-tools' built-in include tree.
+        Hidden directories and common dependency/build directories are not
+        part of the selected schema bundle and must not be compiled.
+        """
+        ignored_directories = {
+            "__pycache__",
+            ".git",
+            ".venv",
+            "build",
+            "dist",
+            "env",
+            "node_modules",
+            "venv",
+        }
+        for candidate in directory.rglob("*.proto"):
+            relative_parts = candidate.relative_to(directory).parts
+            if any(
+                part.startswith(".") or part in ignored_directories
+                for part in relative_parts[:-1]
+            ):
+                continue
+            yield candidate
 
     def resolve(self, message_type: str) -> type[message.Message]:
         name = message_type.lstrip(".")
@@ -108,19 +139,18 @@ class SchemaRegistry:
             descriptor_set.ParseFromString(cached)
         else:
             try:
-                from grpc_tools import protoc
                 grpc_include = (
                     Path(importlib.util.find_spec("grpc_tools").origin).parent
                     / "_proto"
                 )
-            except (ImportError, AttributeError) as exc:
+            except (ImportError, AttributeError, TypeError) as exc:
                 raise SchemaResolutionError(
                     "loading .proto source requires grpcio-tools; generated modules "
                     "can be loaded without it"
                 ) from exc
 
             all_roots = [*roots, grpc_include]
-            arguments = ["protoc"]
+            arguments = []
             arguments.extend(f"-I{root}" for root in all_roots)
             with tempfile.TemporaryDirectory() as temporary_directory:
                 descriptor_path = Path(temporary_directory) / "schema.pb"
@@ -134,11 +164,17 @@ class SchemaRegistry:
                 for proto in protos:
                     relative = self._relative_proto(proto, roots)
                     arguments.append(relative.as_posix())
-                result = protoc.main(arguments)
-                if result != 0:
+                result = subprocess.run(
+                    [sys.executable, "-m", "grpc_tools.protoc", *arguments],
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode != 0:
+                    diagnostic = (result.stderr or result.stdout).strip()
+                    detail = f": {diagnostic}" if diagnostic else ""
                     raise SchemaResolutionError(
-                        f"protoc failed with exit status {result} while loading "
-                        f"{', '.join(str(item) for item in protos)}"
+                        f"protoc failed with exit status {result.returncode} while loading "
+                        f"{', '.join(str(item) for item in protos)}{detail}"
                     )
                 serialized = descriptor_path.read_bytes()
                 descriptor_set.ParseFromString(serialized)

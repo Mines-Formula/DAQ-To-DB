@@ -64,6 +64,7 @@ thePipeline/
 │   ├── csv_to_influxdb/       # Timestamp conversion + line protocol formatter
 │   ├── influx/               # InfluxDB writer
 │   ├── csv_to_rerun/         # Rerun SDK exporter
+│   ├── schemas/MF26/v2/      # Bundled default protobuf schema
 │   └── constants.py          # Shared paths and config
 ├── data/
 │   ├── DBCFiles/             # CAN database files (git submodule)
@@ -158,9 +159,9 @@ config = InputConfig(
 decode_to_csv("run.pb", "run.csv", config)
 ```
 
-Protobuf capture records are normalized as raw CAN frames and routed through
-the same DBC decoder as Formula binary input. They therefore produce the same
-CSV, InfluxDB, and Rerun outputs as CAN uploads.
+Protobuf capture records are decoded directly into telemetry rows. They
+produce the stable five-column CSV used by the rest of the pipeline, without
+an output-mode choice or an additional DBC conversion step.
 
 For production, generate modules once during the build:
 
@@ -171,8 +172,26 @@ python -m tools.generate_protobuf ../schemas generated \
 ```
 
 The upload UI accepts CAN files or full protobuf capture files. Protobuf
-uploads require a `.proto` schema file and `message_type`; the web workflow
-uses length-delimited varint framing and the raw-CAN output path automatically.
+uploads default to the bundled `src/schemas/MF26/v2` schema and
+`MF26.v2.CarFrame` message type. Selecting a folder of `.proto` files is an
+optional per-upload override. For schemas with imports, include the complete
+schema bundle and preserve paths such as `MF26/v2/ecu.proto`.
+
+The sample capture in the sibling `ProtobufFiles/tools` repository uses
+`MF26.v2.CarFrame`, varint framing, and decoded telemetry output.
+
+### Decode the sample capture
+
+Run the website locally, choose **Protobuf capture file**, keep the default
+schema and message type, then upload `tools/sample-carframes.bin`. The sample is
+a varint-delimited stream, so no fixed-width framing or single-message mode is
+needed. The sample contains 10 protobuf records and a successful run writes
+820 telemetry rows.
+
+The schema folder may contain a local `.venv`, `.git`, or build/dependency
+tree. Those directories are ignored when collecting `.proto` files; compiling
+their vendored Google schemas caused duplicate-definition errors during the
+first sample upload.
 
 Once a representative vehicle schema and capture are available, measure the
 protobuf portion separately from total CSV conversion:
@@ -182,6 +201,5 @@ cd src
 python -m tools.benchmark_protobuf ../run.pb \
   --schema ../schemas \
   --message-type telemetry.VehicleMessage \
-  --format protobuf_delimited \
-  --mode raw_can
+  --format protobuf_delimited
 ```

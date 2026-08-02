@@ -284,6 +284,12 @@ def _normalize_timestamp(value: Any) -> int | float | str | None:
         and value.DESCRIPTOR.full_name == Timestamp.DESCRIPTOR.full_name
     ):
         return _timestamp_isoformat(value)
+    # MF26 uses its own Timestamp message instead of the Google well-known
+    # type. Keep it numeric so the existing CSV/Influx/Rerun stages can use it.
+    if isinstance(value, message.Message):
+        fields = value.DESCRIPTOR.fields_by_name
+        if "seconds" in fields and "nanos" in fields:
+            return int(value.seconds) * 1000 + int(value.nanos) // 1_000_000
     return value
 
 
