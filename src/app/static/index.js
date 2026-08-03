@@ -3,8 +3,15 @@ const POLL_INTERVAL = 2000;
 const dropZone = document.getElementById("dropZone");
 const fileInput = document.getElementById("fileInput");
 const alertContainer = document.getElementById("alertContainer");
+const inputFormat = document.getElementById("inputFormat");
+const protobufOptions = document.getElementById("protobufOptions");
+const schemaInput = document.getElementById("schemaInput");
 
 let pollIntervalId = null;
+
+inputFormat.addEventListener("change", () => {
+  protobufOptions.hidden = inputFormat.value === "formula_binary";
+});
 
 dropZone.addEventListener("click", () => fileInput.click());
 
@@ -40,8 +47,24 @@ fileInput.addEventListener("change", (e) => {
 function handleFiles(files) {
   const formData = new FormData();
   for (const file of files) {
-    // Backend just loops over request.files.values() so key name doesn't matter
-    formData.append(file.name, file);
+    formData.append("files", file);
+  }
+
+  formData.append("input_format", inputFormat.value);
+
+  if (inputFormat.value !== "formula_binary") {
+    const schemaFiles = [...schemaInput.files].filter((file) =>
+      file.name.toLowerCase().endsWith(".proto"),
+    );
+    for (const schema of schemaFiles) {
+      // An uploaded bundle overrides the bundled MF26/v2 default. Relative
+      // paths are required for imports such as MF26/v2/ecu.proto.
+      formData.append("schema_files", schema, schema.webkitRelativePath || schema.name);
+    }
+    const messageType = document.getElementById("messageType").value.trim();
+    if (messageType) {
+      formData.append("message_type", messageType);
+    }
   }
 
   const debugMode = document.getElementById("debugToggle").checked;

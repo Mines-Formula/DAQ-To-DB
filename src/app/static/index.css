@@ -9,12 +9,48 @@
 body {
     padding-top: 90px;
     background-color: #f4f7f9;
+    box-sizing: border-box;
+}
+
+main {
+    min-height: 0;
+    position: relative;
+    z-index: 1;
 }
 
 .navbar {
     background-color: var(--nav-bg) !important;
     border-bottom: 1px solid var(--border-color);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    pointer-events: none;
+}
+
+.navbar a,
+.navbar button {
+    pointer-events: auto;
+}
+
+/* A collapsed navbar must not cover the content when its responsive styles
+   have not finished loading. Keep its actual links interactive. */
+.navbar-collapse {
+    pointer-events: none;
+}
+
+.navbar-collapse .nav-link {
+    pointer-events: auto;
+}
+
+/* Keep the desktop navigation from becoming an event-blocking collapse panel
+   if the Bootstrap stylesheet is delayed or unavailable. */
+@media (min-width: 992px) {
+    .navbar-expand-lg .navbar-collapse {
+        display: flex !important;
+        flex-basis: auto;
+    }
+
+    .navbar-expand-lg .navbar-toggler {
+        display: none;
+    }
 }
 
 .navbar-logo {

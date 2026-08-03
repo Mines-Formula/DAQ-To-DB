@@ -1,6 +1,6 @@
 import pandas as pd
 
-from unknown_to_known.filter_gps import filter_gps
+from can_to_csv.filter_gps import filter_gps
 
 
 def test_filter_gps_removes_out_of_bounds_latitude(tmp_path):

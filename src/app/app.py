@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import tempfile
+import json
+import time
+import re
 from typing import TYPE_CHECKING
 
 from flask import Flask, jsonify, render_template, request
 from pathlib import Path
+from pathlib import PurePosixPath
 from datetime import datetime
 
-from known_to_influxdb import line_protocol, write_to_influxDB
-from unknown_to_known import decode
+from csv_to_influxdb import line_protocol, write_to_influxDB
 from csv_to_rerun import csv_to_rerun
-from raw_to_unknown import deserializer
+from telemetry_input import InputConfig, InputFormat, decode_to_csv
 from constants import *
 from os import urandom
 from .models import ConversionProgress, LimitedDict
@@ -27,6 +30,8 @@ if TYPE_CHECKING:
 DATA_FILENAME = "{}.data"
 CSV_FILENAME = "{}.csv"
 LINE_FILENAME = "{}.line"
+DEFAULT_SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schemas"
+DEFAULT_MESSAGE_TYPE = "MF26.v2.CarFrame"
 
 app = Flask(__name__)
 app.config["tasks"] = LimitedDict(max_size=20)
@@ -62,6 +67,7 @@ def get_progress():
                     "present": exception_present,
                     "type": str(progress.exception),
                 },
+                "metrics": progress.metrics,
             }
         ),
         200 if progress.finished else 202,
@@ -69,28 +75,85 @@ def get_progress():
 
 
 def allowed_file(filename: str) -> bool:
-    return filename.lower().endswith(".data")
+    return filename.lower().endswith((".data", ".bin", ".pb", ".protobuf"))
+
+
+def allowed_schema_file(filename: str) -> bool:
+    return filename.lower().endswith(".proto")
 
 
 @app.post("/upload")
 def upload_data():
-    if len(request.files) == 0:
+    telemetry_files = request.files.getlist("files")
+    schema_files = request.files.getlist("schema_files")
+    if not schema_files:
+        uploaded_schema = request.files.get("schema_file")
+        schema_files = [uploaded_schema] if uploaded_schema is not None else []
+    if not telemetry_files:
+        # Preserve compatibility with the previous frontend, which used each
+        # filename as the multipart field name.
+        telemetry_files = [
+            file
+            for key, file in request.files.items(multi=True)
+            if key not in {"schema_file", "schema_files"}
+        ]
+    input_format = request.form.get("input_format", InputFormat.FORMULA_BINARY.value)
+
+    if input_format == InputFormat.PROTOBUF_BINARY.value:
+        return jsonify(
+            {"error": "Single-message protobuf uploads are not supported; upload a full protobuf capture file."}
+        ), 400
+
+    if (
+        input_format == InputFormat.PROTOBUF_DELIMITED.value
+        and not any(file.filename for file in schema_files)
+        and not request.form.get("schema")
+        and not DEFAULT_SCHEMA_DIR.is_dir()
+    ):
+        return jsonify({"error": "The default MF26/v2 protobuf schema is unavailable."}), 500
+
+    if not telemetry_files:
         return jsonify({"error": "No file uploaded"}), 400
 
-    if not any(
-        file.filename and allowed_file(file.filename) for file in request.files.values()
-    ):
+    if not all(file.filename and allowed_file(file.filename) for file in telemetry_files):
         return jsonify({"error": "Invalid types uploaded."}), 400
 
+    if any(
+        not file.filename or not allowed_schema_file(file.filename)
+        for file in schema_files
+    ):
+        return jsonify({"error": "Schema files must use the .proto extension."}), 400
+    try:
+        for file in schema_files:
+            if file.filename:
+                _safe_schema_path(file.filename)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
     debug_enabled = request.form.get("debug") == "true"
+    try:
+        input_config = _input_config_from_form(
+            request.form,
+            schema_file=schema_files[0] if schema_files else None,
+        )
+        input_config.validate()
+    except (ValueError, json.JSONDecodeError) as exc:
+        return jsonify({"error": str(exc)}), 400
 
     # Read all file contents upfront to avoid closed file errors
-    files_data = [(file.filename, file.read()) for file in request.files.values()]
+    files_data = [(file.filename, file.read()) for file in telemetry_files]
+    schema_data = [
+        (file.filename, file.read()) for file in schema_files if file.filename
+    ]
+    if not schema_data:
+        schema_data = None
+    elif len(schema_data) == 1:
+        schema_data = schema_data[0]
 
     conversion_thread = threading.Thread(
         target=convert_files,
-        args=(files_data,),
-        kwargs=dict(is_debug=debug_enabled),
+        args=(files_data, schema_data),
+        kwargs=dict(is_debug=debug_enabled, input_config=input_config),
         daemon=True,
         name=urandom(8).hex(),
     )
@@ -103,20 +166,95 @@ def upload_data():
     return jsonify({"name": conversion_thread.name})
 
 
-def convert_files(files, **kwargs: Any):
-    for filename, content in files:
-        # Create a temporary FileStorage-like object for conversion
-        from io import BytesIO
-        from werkzeug.datastructures import FileStorage
+def convert_files(files, schema_data=None, **kwargs: Any):
+    # The schema must remain available for the entire worker lifetime. It is
+    # deliberately kept separate from telemetry files so it is never decoded
+    # as a data capture.
+    with tempfile.TemporaryDirectory() as schema_directory:
+        if schema_data:
+            schema_entries = (
+                [schema_data]
+                if isinstance(schema_data, tuple)
+                else schema_data
+            )
+            raw_paths = [_safe_schema_path(filename) for filename, _ in schema_entries]
+            relative_paths = _schema_relative_paths(schema_entries, raw_paths)
+            schema_paths = []
+            for (schema_filename, schema_content), raw_path in zip(
+                schema_entries, relative_paths
+            ):
+                schema_path = Path(schema_directory) / raw_path
+                schema_path.parent.mkdir(parents=True, exist_ok=True)
+                schema_path.write_bytes(schema_content)
+                schema_paths.append(schema_path)
+            # An uploaded bundle is loaded as a directory, overriding the
+            # bundled default while preserving repository-relative imports.
+            kwargs["input_config"].schema = (
+                Path(schema_directory)
+                if len(schema_paths) > 1
+                else schema_paths[0]
+            )
 
-        file_like = FileStorage(
-            stream=BytesIO(content), name=filename, filename=filename
-        )
+        for filename, content in files:
+            # Create a temporary FileStorage-like object for conversion
+            from io import BytesIO
+            from werkzeug.datastructures import FileStorage
 
-        convert_file(file_like, **kwargs)
+            file_like = FileStorage(
+                stream=BytesIO(content), name=filename, filename=filename
+            )
+
+            convert_file(file_like, **kwargs)
 
 
-def convert_file(file: FileStorage, is_debug: bool) -> None:
+def _safe_schema_path(filename: str) -> Path:
+    """Convert a browser-provided relative filename into a safe local path."""
+    normalized = filename.replace("\\", "/")
+    path = PurePosixPath(normalized)
+    if path.is_absolute() or ".." in path.parts or not path.parts:
+        raise ValueError("invalid schema file path")
+    return Path(*path.parts)
+
+
+def _schema_relative_paths(schema_entries, raw_paths: list[Path]) -> list[Path]:
+    """Preserve schema import paths from browser directory uploads.
+
+    Browser directory pickers usually add the selected directory as a wrapper.
+    A user may also select the ``v2`` directory itself, even though MF26 source
+    files import it as ``MF26/v2/...``. Infer that omitted import-root prefix
+    from imports which name one of the uploaded files.
+    """
+    mf26_positions = [
+        path.parts.index("MF26") for path in raw_paths if "MF26" in path.parts
+    ]
+    strip_prefix = (
+        mf26_positions[0]
+        if mf26_positions and len(set(mf26_positions)) == 1
+        else 0
+    )
+    paths = [Path(*path.parts[strip_prefix:]) for path in raw_paths]
+    uploaded = {path.as_posix() for path in paths}
+    prefixes = set()
+    for _, content in schema_entries:
+        source = content.decode("utf-8", errors="ignore")
+        for imported in re.findall(r'^\s*import(?:\s+(?:public|weak))?\s+"([^"]+)"', source, re.MULTILINE):
+            for relative in uploaded:
+                if imported.endswith("/" + relative):
+                    prefixes.add(imported[: -len(relative)])
+
+    # One consistent prefix identifies the directory that was omitted by the
+    # picker. Never guess when schemas use more than one import root.
+    if len(prefixes) == 1:
+        prefix = Path(prefixes.pop())
+        return [prefix / path for path in paths]
+    return paths
+
+
+def convert_file(
+    file: FileStorage,
+    is_debug: bool,
+    input_config: InputConfig | None = None,
+) -> None:
     """
     Converts .data following this flow:
         .data (raw) -> .data (unknown) -> .csv (known) -> .line (known)
@@ -130,7 +268,6 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
 
     csv_filename = CSV_FILENAME.format(base_name)
     raw_data_filename = DATA_FILENAME.format("raw_" + base_name)
-    unknown_data_filename = DATA_FILENAME.format("unknown_" + base_name)
     line_filename = LINE_FILENAME.format(base_name)
 
     current_thread_name = threading.current_thread().name
@@ -138,32 +275,37 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
 
     with tempfile.TemporaryDirectory() as temporary_directory:
         parent_path = Path(temporary_directory)
-        unknown_data_path = parent_path / unknown_data_filename
-
         raw_data_path = RAW_DIR / raw_data_filename
         csv_path = CSV_DIR / csv_filename
         line_path = parent_path / line_filename
 
         file.save(raw_data_path)
-        conversion_progress.progress = "deserialize"
-
+        conversion_progress.progress = "decoding input"
+        decode_started = time.perf_counter()
         try:
-            deserializer.deserialize(
-                str(raw_data_path.resolve()), str(unknown_data_path.resolve())
+            resolved_input_config = input_config or InputConfig(
+                input_format=InputFormat.AUTO
             )
-        except Exception as _:
-            pass
-        else:
-            raw_data_path = unknown_data_path
-            conversion_progress.progress = "making known"
-
-        try:
-            decode.make_known(str(raw_data_path.resolve()), str(csv_path.resolve()))
+            record_count = decode_to_csv(
+                raw_data_path.resolve(),
+                csv_path.resolve(),
+                resolved_input_config,
+            )
         except Exception as exec:
             conversion_progress.exception = exec
+            conversion_progress.finished = True
             return
         else:
-            conversion_progress.progress = "line protocol "
+            conversion_progress.metrics.update(
+                {
+                    "records_processed": record_count,
+                    "records_skipped": resolved_input_config.runtime_metrics[
+                        "records_skipped"
+                    ],
+                    "decode_seconds": round(time.perf_counter() - decode_started, 6),
+                }
+            )
+            conversion_progress.progress = "csv_to_influxdb"
 
         try:
             line_protocol.convert_to_lineprotocol(
@@ -171,7 +313,9 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
                 str(line_path.resolve()),
             )
         except Exception as exec:
-            raise
+            conversion_progress.exception = exec
+            conversion_progress.finished = True
+            return
         else:
             conversion_progress.progress = "uploading to influx"
 
@@ -185,6 +329,7 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
 
         except Exception as exec:
             conversion_progress.exception = exec
+            conversion_progress.finished = True
             return
         else:
             conversion_progress.progress = "creating rerun file"
@@ -193,10 +338,35 @@ def convert_file(file: FileStorage, is_debug: bool) -> None:
             csv_to_rerun.convert(csv_path.resolve(), RERUN_DIR)
         except Exception as exec:
             conversion_progress.exception = exec
+            conversion_progress.finished = True
             return
         else:
             conversion_progress.progress = "done"
             conversion_progress.finished = True
+
+
+def _input_config_from_form(form, schema_file=None) -> InputConfig:
+    input_format = form.get("input_format", InputFormat.AUTO.value)
+    is_protobuf = input_format in {
+        InputFormat.PROTOBUF_BINARY.value,
+        InputFormat.PROTOBUF_DELIMITED.value,
+    }
+    options = {
+        "input_format": input_format,
+        "schema": form.get("schema") or (
+            "uploaded.proto"
+            if schema_file
+            else DEFAULT_SCHEMA_DIR
+            if is_protobuf
+            else None
+        ),
+        "generated_module": form.get("generated_module") or None,
+        "message_type": form.get("message_type") or (
+            DEFAULT_MESSAGE_TYPE if is_protobuf else None
+        ),
+        "length_prefix_encoding": "varint",
+    }
+    return InputConfig(**options)
 
 
 @app.route("/files")
