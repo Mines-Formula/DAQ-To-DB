@@ -1,6 +1,6 @@
 import pytest
 
-from raw_to_unknown.deserializer import deserialize
+from binary_to_can.deserializer import deserialize
 
 
 def test_deserialize_raises_on_missing_file(tmp_path):

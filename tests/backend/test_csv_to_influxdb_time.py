@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from known_to_influxdb.convert_unix_time import (
+from csv_to_influxdb.convert_unix_time import (
     _parse_time_value,
     build_time_ref,
     convert_to_unix,

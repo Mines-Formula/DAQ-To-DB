@@ -2,6 +2,7 @@ services:
   web:
     build:
       context: ./src
+      network: host
     network_mode: host
     ports: !reset []
     stop_signal: SIGINT
