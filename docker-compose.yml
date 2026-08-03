@@ -1,11 +1,12 @@
 services:
-  web: 
+  web:
     build:
       context: ./src
+      network: host
+    network_mode: host
+    ports: !reset []
     stop_signal: SIGINT
     restart: unless-stopped
-    ports:
-      - "6767:6767" 
     volumes:
       - ./data:/data
     environment:
