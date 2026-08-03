@@ -76,6 +76,23 @@ def test_upload_accepts_protobuf_capture_and_schema(upload_app):
     assert config.length_prefix_encoding.value == "varint"
 
 
+def test_upload_accepts_binpd_protobuf_capture(upload_app):
+    client, captured = upload_app
+
+    response = client.post(
+        "/upload",
+        data={
+            "files": (io.BytesIO(b"protobuf bytes"), "capture.binpd"),
+            "input_format": "protobuf_delimited",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    files, _, _ = captured[-1]
+    assert files == [("capture.binpd", b"protobuf bytes")]
+
+
 def test_protobuf_upload_defaults_to_bundled_mf26_v2_schema(upload_app):
     import app.app as app_module
 
