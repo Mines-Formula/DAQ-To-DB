@@ -57,8 +57,8 @@ function handleFiles(files) {
       file.name.toLowerCase().endsWith(".proto"),
     );
     for (const schema of schemaFiles) {
-      // An uploaded bundle overrides the bundled MF26/v2 default. Relative
-      // paths are required for imports such as MF26/v2/ecu.proto.
+      // An uploaded bundle overrides the bundled MF26/v3 default. Relative
+      // paths are required for imports such as MF26/v3/ecu.proto.
       formData.append("schema_files", schema, schema.webkitRelativePath || schema.name);
     }
     const messageType = document.getElementById("messageType").value.trim();

@@ -31,7 +31,7 @@ DATA_FILENAME = "{}.data"
 CSV_FILENAME = "{}.csv"
 LINE_FILENAME = "{}.line"
 DEFAULT_SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schemas"
-DEFAULT_MESSAGE_TYPE = "MF26.v2.CarFrame"
+DEFAULT_MESSAGE_TYPE = "MF26.v3.CarFrame"
 
 app = Flask(__name__)
 app.config["tasks"] = LimitedDict(max_size=20)
@@ -110,7 +110,7 @@ def upload_data():
         and not request.form.get("schema")
         and not DEFAULT_SCHEMA_DIR.is_dir()
     ):
-        return jsonify({"error": "The default MF26/v2 protobuf schema is unavailable."}), 500
+        return jsonify({"error": "The default MF26/v3 protobuf schema is unavailable."}), 500
 
     if not telemetry_files:
         return jsonify({"error": "No file uploaded"}), 400
@@ -220,8 +220,8 @@ def _schema_relative_paths(schema_entries, raw_paths: list[Path]) -> list[Path]:
     """Preserve schema import paths from browser directory uploads.
 
     Browser directory pickers usually add the selected directory as a wrapper.
-    A user may also select the ``v2`` directory itself, even though MF26 source
-    files import it as ``MF26/v2/...``. Infer that omitted import-root prefix
+    A user may also select the ``v3`` directory itself, even though MF26 source
+    files import it as ``MF26/v3/...``. Infer that omitted import-root prefix
     from imports which name one of the uploaded files.
     """
     mf26_positions = [
