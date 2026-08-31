@@ -123,7 +123,7 @@ def _mapped_telemetry_rows(normalized):
 def _flatten_message_record(record: DecodedRecord):
     """Flatten an already-decoded protobuf message into telemetry rows.
 
-    Vehicle schemas such as MF26.v2.CarFrame contain nested ECU/DAQ/GPS/PDM
+    Vehicle schemas such as MF26.v3.CarFrame contain nested ECU/DAQ/GPS/PDM
     values rather than a single sensor/value pair. The leaf field path is a
     stable sensor name, and ``car_id`` is retained as the CSV tag.
     """

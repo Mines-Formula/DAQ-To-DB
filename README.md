@@ -65,7 +65,7 @@ thePipeline/
 │   ├── csv_to_influxdb/       # Timestamp conversion + line protocol formatter
 │   ├── influx/               # InfluxDB writer
 │   ├── csv_to_rerun/         # Rerun SDK exporter
-│   ├── schemas/MF26/v2/      # Bundled default protobuf schema
+│   ├── schemas/MF26/v3/      # Bundled default protobuf schema
 │   └── constants.py          # Shared paths and config
 ├── data/
 │   ├── DBCFiles/             # CAN database files (git submodule)
@@ -173,13 +173,13 @@ python -m tools.generate_protobuf ../schemas generated \
 ```
 
 The upload UI accepts CAN files or full protobuf capture files. Protobuf
-uploads default to the bundled `src/schemas/MF26/v2` schema and
-`MF26.v2.CarFrame` message type. Selecting a folder of `.proto` files is an
+uploads default to the bundled `src/schemas/MF26/v3` schema and
+`MF26.v3.CarFrame` message type. Selecting a folder of `.proto` files is an
 optional per-upload override. For schemas with imports, include the complete
-schema bundle and preserve paths such as `MF26/v2/ecu.proto`.
+schema bundle and preserve paths such as `MF26/v3/ecu.proto`.
 
 The sample capture in the sibling `ProtobufFiles/tools` repository uses
-`MF26.v2.CarFrame`, varint framing, and decoded telemetry output.
+`MF26.v3.CarFrame`, varint framing, and decoded telemetry output.
 
 ### Decode the sample capture
 

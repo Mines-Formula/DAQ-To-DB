@@ -136,8 +136,8 @@ class TestPageStructure:
         assert schema_input.get_attribute("multiple") is not None
         assert schema_input.get_attribute("webkitdirectory") is not None
         expect(page.locator("#protobufOptions")).to_contain_text("override")
-        expect(page.locator("#protobufOptions")).to_contain_text("MF26/v2")
-        expect(page.locator("#messageType")).to_have_value("MF26.v2.CarFrame")
+        expect(page.locator("#protobufOptions")).to_contain_text("MF26/v3")
+        expect(page.locator("#messageType")).to_have_value("MF26.v3.CarFrame")
 
     def test_protobuf_output_mode_control_is_removed(self, page: Page, server_url):
         expect(page.locator("#protobufOutputMode")).to_have_count(0)
